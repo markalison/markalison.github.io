@@ -13,12 +13,12 @@
     theme: {
       extend: {
         colors: {
-          ink:   '#16232E',
-          ink2:  '#54666F',
-          paper: '#E8ECEE',
-          panel: '#F6F9F9',
-          rule:  '#C3CED4',
-          pine:  '#0B6E5F',
+          ink:   'var(--color-ink)',
+          ink2:  'var(--color-ink2)',
+          paper: 'var(--color-paper)',
+          panel: 'var(--color-panel)',
+          rule:  'var(--color-rule)',
+          pine:  'var(--color-pine)',
         },
         fontFamily: {
           mono:  ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace'],
@@ -31,11 +31,17 @@
 </script>
 
 <style>
-  ::selection { background: #0B6E5F; color: #fff; }
+  :root { --color-ink: #16232E; --color-ink2: #54666F; --color-paper: #E8ECEE; --color-panel: #F6F9F9; --color-rule: #C3CED4; --color-pine: #0B6E5F; }
+  ::selection { background: var(--color-pine); color: #fff; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
   }
+  .dark { --color-ink: #E0E6EA; --color-ink2: #9AABB4; --color-paper: #141C22; --color-panel: #1C262E; --color-rule: #2E3E48; --color-pine: #2DD4A8; }
+  .dark ::selection { background: #2DD4A8; color: #141C22; }
 </style>
+<script>
+  if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && matchMedia('(prefers-color-scheme:dark)').matches)) document.documentElement.classList.add('dark');
+</script>
 </head>
 
 <body class="bg-paper text-ink font-serif antialiased">
@@ -46,9 +52,13 @@
     <div class="mx-auto max-w-5xl px-6">
       <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pt-12 pb-6">
         <a href="../index.html" class="font-mono text-2xl tracking-tight text-ink sm:text-3xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine">loopback</a>
-        <nav class="flex gap-7 pb-1 font-mono text-sm text-ink2">
+        <nav class="flex items-center gap-7 pb-1 font-mono text-sm text-ink2">
           <a href="../index.html#archive" class="underline-offset-4 hover:text-pine hover:underline">Archive</a>
           <a href="../about.html" class="underline-offset-4 hover:text-pine hover:underline">About</a>
+          <button id="theme-toggle" aria-label="Toggle dark mode" class="hover:text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine" title="Toggle dark mode">
+            <svg id="icon-sun" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg id="icon-moon" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
         </nav>
       </div>
     </div>
@@ -121,5 +131,21 @@
     </div>
   </footer>
 
+<script>
+  const toggle = document.getElementById('theme-toggle');
+  const sun = document.getElementById('icon-sun');
+  const moon = document.getElementById('icon-moon');
+  function updateIcons() {
+    const dark = document.documentElement.classList.contains('dark');
+    sun.classList.toggle('hidden', !dark);
+    moon.classList.toggle('hidden', dark);
+  }
+  updateIcons();
+  toggle.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    updateIcons();
+  });
+</script>
 </body>
 </html>

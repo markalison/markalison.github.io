@@ -52,7 +52,9 @@
 
         <!-- ③ One <li> per tag. The data-tag value must match the data-tags
              value on the archive rows below, exactly. -->
-        <li><button data-tag="first-tag" aria-pressed="false" class="tag -mx-2 rounded px-2 py-1 text-left hover:bg-panel hover:text-pine">first-tag</button></li>
+        <li><button data-tag="nmap" aria-pressed="false" class="tag -mx-2 rounded px-2 py-1 text-left hover:bg-panel hover:text-pine">nmap</button></li>
+        <li><button data-tag="htb" aria-pressed="false" class="tag -mx-2 rounded px-2 py-1 text-left hover:bg-panel hover:text-pine">htb</button></li>
+        <li><button data-tag="enumeration" aria-pressed="false" class="tag -mx-2 rounded px-2 py-1 text-left hover:bg-panel hover:text-pine">enumeration</button></li>
       </ul>
     </aside>
 
@@ -65,9 +67,11 @@
            this block moves down into the archive list as a row. -->
       <article id="latest" class="py-10 lg:py-14">
         <div class="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs text-ink2">
-          <time datetime="0000-00-00">0000-00-00</time>
-          <span class="text-pine">first-tag</span>
-          <span>0 min</span>
+          <time datetime="2026-08-30">2026-08-30</time>
+          <span class="text-pine">nmap</span>
+          <span class="text-pine">htb</span>
+          <span class="text-pine">enumeration</span>
+          <span>2 min</span>
         </div>
 
         <h1 class="mt-4 text-3xl leading-[1.08] tracking-tight sm:text-5xl">
@@ -77,7 +81,7 @@
         <div class="mt-7 max-w-measure space-y-6 text-lg leading-8">
           <p>
             Solution to Network Enumeration with Nmap (section 6/12)
-            <a href="https://academy.hackthebox.com/app/module/19/section/103">Service Enumeration</a>
+            <a href="https://academy.hackthebox.com/app/module/19/section/103" class="text-pine underline underline-offset-4 hover:text-ink">Service Enumeration</a>
             In order to capture the flag for this module, run <code>nmap -sV -sC -p- TARGET_IP </code>
           </p>
         </div>
@@ -94,21 +98,6 @@
         <!-- ⑤ One <li> per older post. Copy the block below for each new one,
              newest at the top. data-tags is what the tag buttons filter on. -->
         <ul id="rows" class="mt-6 divide-y divide-rule border-y border-rule">
-
-          <li data-row data-tags="first-tag">
-            <a href="posts/second-post.html" class="group -mx-3 grid grid-cols-1 items-baseline gap-x-6 gap-y-1 rounded px-3 py-5 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine sm:grid-cols-[6.5rem_minmax(0,1fr)_4.5rem]">
-              <div class="font-mono text-xs leading-5 text-ink2">
-                <time datetime="0000-00-00">0000-00-00</time>
-                <div class="text-pine">first-tag</div>
-              </div>
-              <div>
-                <h3 class="text-lg leading-snug group-hover:text-pine">Post title</h3>
-                <p class="mt-1 max-w-measure text-sm leading-6 text-ink2">One sentence describing the post, so someone scanning the list knows whether it answers their question.</p>
-              </div>
-              <span class="font-mono text-xs text-ink2 sm:text-right">0 min</span>
-            </a>
-          </li>
-
         </ul>
 
         <p id="empty" class="hidden py-10 text-center font-mono text-sm text-ink2">

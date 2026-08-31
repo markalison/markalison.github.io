@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Post title, then blog name -->
+<title>Post title — blog name</title>
+<meta name="description" content="One sentence about this post. Search engines show this under the title.">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:   '#16232E',
+          ink2:  '#54666F',
+          paper: '#E8ECEE',
+          panel: '#F6F9F9',
+          rule:  '#C3CED4',
+          pine:  '#0B6E5F',
+        },
+        fontFamily: {
+          mono:  ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', 'monospace'],
+          serif: ['Iowan Old Style', 'Palatino Linotype', 'Palatino', 'Georgia', 'serif'],
+        },
+        maxWidth: { measure: '62ch' },
+      },
+    },
+  };
+</script>
+
+<style>
+  ::selection { background: #0B6E5F; color: #fff; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+</style>
+</head>
+
+<body class="bg-paper text-ink font-serif antialiased">
+
+  <a href="#post" class="sr-only focus:not-sr-only focus:absolute focus:m-3 focus:rounded focus:bg-ink focus:px-3 focus:py-2 focus:font-mono focus:text-sm focus:text-paper">Skip to content</a>
+
+  <!-- Same masthead as the index, so the two pages feel like one site.
+       If the path is posts/whatever.html, the links need ../ in front. -->
+  <header class="border-b-2 border-pine">
+    <div class="mx-auto max-w-5xl px-6">
+      <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pt-12 pb-6">
+        <a href="../index.html" class="font-mono text-2xl tracking-tight text-ink sm:text-3xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine">blog name</a>
+        <nav class="flex gap-7 pb-1 font-mono text-sm text-ink2">
+          <a href="../index.html#archive" class="underline-offset-4 hover:text-pine hover:underline">Archive</a>
+          <a href="../about.html" class="underline-offset-4 hover:text-pine hover:underline">About</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-5xl px-6">
+    <article id="post" class="border-l-2 border-pine py-12 pl-6 lg:pl-10">
+
+      <!-- Date, tag, reading time. Roughly 200 words a minute, rounded up. -->
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs text-ink2">
+        <time datetime="0000-00-00">0000-00-00</time>
+        <span class="text-pine">first-tag</span>
+        <span>0 min</span>
+      </div>
+
+      <h1 class="mt-4 max-w-measure text-3xl leading-[1.08] tracking-tight sm:text-5xl">
+        Post title
+      </h1>
+
+      <!-- ── Post body ────────────────────────────────────────────────────
+           The space-y-6 on this div puts the gap between every block inside
+           it, so paragraphs, lists and images don't need their own margins.
+           Delete the elements you don't need; they're here as a reference
+           for which classes to use. -->
+      <div class="mt-8 max-w-measure space-y-6 text-lg leading-8">
+
+        <p>
+          Open with the problem, not the background. Someone landed here from a
+          search and wants to know within two sentences whether this page is
+          about their situation.
+        </p>
+
+        <p>
+          A normal paragraph. Body text is capped at 62 characters a line, which
+          is why the column stops where it does — long lines are harder to track
+          back to the start of.
+        </p>
+
+        <h2 class="!mt-12 text-2xl tracking-tight">A section heading</h2>
+
+        <p>
+          Headings use <code class="rounded bg-panel px-1.5 py-0.5 font-mono text-base text-pine">!mt-12</code>
+          to override the shared spacing, so a new section gets more air above it
+          than a paragraph does.
+        </p>
+
+        <ul class="list-disc space-y-2 pl-5">
+          <li>A bulleted list item</li>
+          <li>Another one</li>
+        </ul>
+
+        <ol class="list-decimal space-y-2 pl-5">
+          <li>A numbered step</li>
+          <li>The next step</li>
+        </ol>
+
+        <pre class="overflow-x-auto rounded border border-rule bg-panel p-4 font-mono text-sm leading-6"><code>a command or a block of code
+goes in here</code></pre>
+
+        <blockquote class="border-l-2 border-pine pl-5 italic text-ink2">
+          A quote, or an aside that isn't part of the main thread.
+        </blockquote>
+
+        <figure>
+          <img src="../images/screenshot.png" alt="Describe what the image shows, for people who can't see it." class="rounded border border-rule">
+          <figcaption class="mt-2 font-mono text-xs text-ink2">Caption for the image.</figcaption>
+        </figure>
+
+        <p>
+          A <a href="https://example.com" class="text-pine underline underline-offset-4 hover:text-ink">link inside the body</a>
+          looks like this.
+        </p>
+
+        <p>
+          Close by saying what fixed it, or what you'd do differently. Skip the
+          summary of what you just wrote.
+        </p>
+
+      </div>
+    </article>
+
+    <nav class="border-t border-rule py-8 font-mono text-sm">
+      <a href="../index.html#archive" class="text-pine underline underline-offset-4 hover:text-ink">All posts</a>
+    </nav>
+  </main>
+
+  <footer class="border-t-2 border-pine">
+    <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 font-mono text-sm text-ink2">
+      <p>A line about who writes this.</p>
+      <div class="flex gap-6">
+        <a href="mailto:you@example.com" class="hover:text-pine">Email</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

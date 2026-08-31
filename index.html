@@ -1,11 +1,169 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>
-            My Site!
-        </title>
-    </head>
-    <body>
-        <h1>This is my GitHub Pages website!</h1>
-    </body>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- ① Change this. It shows in the browser tab and in search results. -->
+<title>Blog name — what you write about</title>
+
+<link href="css/site.css" rel="stylesheet">
+
+<style>
+  ::selection { background: #0B6E5F; color: #fff; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+</style>
+</head>
+
+<body class="bg-paper text-ink font-serif antialiased">
+
+  <a href="#latest" class="sr-only focus:not-sr-only focus:absolute focus:m-3 focus:rounded focus:bg-ink focus:px-3 focus:py-2 focus:font-mono focus:text-sm focus:text-paper">Skip to content</a>
+
+  <!-- ── Masthead ─────────────────────────────────────────────────────────── -->
+  <header class="border-b-2 border-pine">
+    <div class="mx-auto max-w-5xl px-6">
+      <div class="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 pt-12 pb-6">
+        <div>
+          <!-- ② Your blog name, and one line saying what it is -->
+          <a href="index.html" class="font-mono text-4xl tracking-tight text-ink sm:text-5xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine">blog name</a>
+          <p class="mt-3 font-mono text-sm text-ink2">One line about what you write here</p>
+        </div>
+        <nav class="flex gap-7 pb-1 font-mono text-sm text-ink2">
+          <a href="#archive" class="underline-offset-4 hover:text-pine hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine">Archive</a>
+          <a href="about.html" class="underline-offset-4 hover:text-pine hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine">About</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="mx-auto max-w-5xl px-6 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:gap-14">
+
+    <!-- ── Rail ───────────────────────────────────────────────────────────── -->
+    <aside class="border-b border-rule py-8 lg:sticky lg:top-0 lg:h-fit lg:self-start lg:border-b-0 lg:border-l-2 lg:border-pine lg:pl-5">
+      <label for="q" class="sr-only">Search posts</label>
+      <input id="q" type="search" placeholder="Search posts"
+             class="w-full rounded border border-rule bg-panel px-3 py-2 font-mono text-sm text-ink placeholder:text-ink2 focus:border-pine focus:outline-none focus:ring-1 focus:ring-pine">
+
+      <p class="mt-8 font-mono text-xs text-ink2">Tags</p>
+      <ul class="mt-3 flex flex-wrap gap-2 font-mono text-sm lg:flex-col lg:gap-1.5">
+        <li><button data-tag="all" aria-pressed="true" class="tag -mx-2 rounded bg-panel px-2 py-1 text-left text-pine hover:bg-panel hover:text-pine">Everything</button></li>
+
+        <!-- ③ One <li> per tag. The data-tag value must match the data-tags
+             value on the archive rows below, exactly. -->
+        <li><button data-tag="first-tag" aria-pressed="false" class="tag -mx-2 rounded px-2 py-1 text-left hover:bg-panel hover:text-pine">first-tag</button></li>
+      </ul>
+    </aside>
+
+    <!-- ── Main ───────────────────────────────────────────────────────────── -->
+    <main>
+
+      <!-- ④ NEWEST POST, opened in full.
+           Paste the title, date and first few paragraphs of your latest post
+           here, then link to the full post file. When you write a newer one,
+           this block moves down into the archive list as a row. -->
+      <article id="latest" class="py-10 lg:py-14">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-xs text-ink2">
+          <time datetime="0000-00-00">0000-00-00</time>
+          <span class="text-pine">first-tag</span>
+          <span>0 min</span>
+        </div>
+
+        <h1 class="mt-4 text-3xl leading-[1.08] tracking-tight sm:text-5xl">
+          Your first post title
+        </h1>
+
+        <div class="mt-7 max-w-measure space-y-6 text-lg leading-8">
+          <p>
+            Opening paragraph. Two or three of these, enough to show someone what
+            the post is about and let them decide whether to keep going.
+          </p>
+        </div>
+
+        <a href="posts/first-post.html" class="mt-7 inline-block font-mono text-sm text-pine underline underline-offset-4 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine">
+          Keep reading
+        </a>
+      </article>
+
+      <!-- ── Archive index ──────────────────────────────────────────────── -->
+      <section id="archive" class="border-t border-rule py-10">
+        <h2 class="font-mono text-sm text-ink2">Archive</h2>
+
+        <!-- ⑤ One <li> per older post. Copy the block below for each new one,
+             newest at the top. data-tags is what the tag buttons filter on. -->
+        <ul id="rows" class="mt-6 divide-y divide-rule border-y border-rule">
+
+          <li data-row data-tags="first-tag">
+            <a href="posts/second-post.html" class="group -mx-3 grid grid-cols-1 items-baseline gap-x-6 gap-y-1 rounded px-3 py-5 hover:bg-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine sm:grid-cols-[6.5rem_minmax(0,1fr)_4.5rem]">
+              <div class="font-mono text-xs leading-5 text-ink2">
+                <time datetime="0000-00-00">0000-00-00</time>
+                <div class="text-pine">first-tag</div>
+              </div>
+              <div>
+                <h3 class="text-lg leading-snug group-hover:text-pine">Post title</h3>
+                <p class="mt-1 max-w-measure text-sm leading-6 text-ink2">One sentence describing the post, so someone scanning the list knows whether it answers their question.</p>
+              </div>
+              <span class="font-mono text-xs text-ink2 sm:text-right">0 min</span>
+            </a>
+          </li>
+
+        </ul>
+
+        <p id="empty" class="hidden py-10 text-center font-mono text-sm text-ink2">
+          Nothing matches that. Clear the search or pick Everything to see all posts.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <!-- ── Footer ───────────────────────────────────────────────────────────── -->
+  <footer class="mt-8 border-t-2 border-pine">
+    <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 font-mono text-sm text-ink2">
+      <p>A line about who writes this.</p>
+      <div class="flex gap-6">
+        <a href="mailto:you@example.com" class="hover:text-pine">Email</a>
+      </div>
+    </div>
+  </footer>
+
+<script>
+  // Filters the archive rows by tag and by what's typed in the search box.
+  const input = document.getElementById('q');
+  const rows  = Array.from(document.querySelectorAll('[data-row]'));
+  const tags  = Array.from(document.querySelectorAll('.tag'));
+  const empty = document.getElementById('empty');
+  let activeTag = 'all';
+
+  function apply() {
+    const term = input.value.trim().toLowerCase();
+    let shown = 0;
+
+    rows.forEach(row => {
+      const matchesTag  = activeTag === 'all' || row.dataset.tags.includes(activeTag);
+      const matchesTerm = !term || row.textContent.toLowerCase().includes(term);
+      const visible = matchesTag && matchesTerm;
+      row.hidden = !visible;
+      if (visible) shown++;
+    });
+
+    empty.classList.toggle('hidden', shown > 0);
+  }
+
+  tags.forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTag = btn.dataset.tag;
+      tags.forEach(b => {
+        const on = b === btn;
+        b.setAttribute('aria-pressed', String(on));
+        b.classList.toggle('text-pine', on);
+        b.classList.toggle('bg-panel', on);
+      });
+      apply();
+    });
+  });
+
+  input.addEventListener('input', apply);
+</script>
+</body>
 </html>

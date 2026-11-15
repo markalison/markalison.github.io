@@ -1,0 +1,984 @@
+/* Playoff Odds Board styles, shared by every page.
+   Built mobile first: the base rules are for phones, and the media queries at the end of each part add room for larger screens.
+   1. Design tokens  2. Base  3. Layout  4. Header and navigation  5. Controls  6. Projected field
+   7. Odds table  8. Team details  9. Scoreboard  10. About page  11. Footer */
+
+/* ---------- 1. Design tokens ---------- */
+:root {
+  color-scheme: light;
+  /* Color: one blue accent, neutral surfaces, and red/green kept for results and live games */
+  --bg: #f4f5f8; --panel: #ffffff; --ink: #171a21; --muted: #5a6172; --line: #dde0e7;
+  --accent: #1f4fd1; --accent-soft: #e3e9fb; --bar: #2f62e3; --heat: #3f8f63; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c; --warn: #b45309;
+  --shadow: 0 1px 2px rgb(16 24 40 / .06), 0 1px 3px rgb(16 24 40 / .05);
+  /* Type: two families and a fixed scale */
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --text-xs: .75rem; --text-sm: .875rem; --text-base: 1rem; --text-md: 1.125rem; --text-lg: 1.375rem; --text-xl: 1.75rem; --text-2xl: clamp(2rem, 6vw, 3rem);
+  /* Spacing: a 4px grid */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --radius-sm: 0; --radius: 0; /* square corners everywhere */
+  --page-max: 1200px;
+  --rk-w: 44px; /* CFP rank column; the pinned Team column starts at this offset */
+  --gutter-l: max(var(--s4), env(safe-area-inset-left, 0px));
+  --gutter-r: max(var(--s4), env(safe-area-inset-right, 0px));
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
+  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --heat: #5fbf8a; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; --warn: #fbbf24;
+  --shadow: none; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
+  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --heat: #5fbf8a; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; --warn: #fbbf24;
+  --shadow: none; color-scheme: dark;
+}
+
+/* ---------- 2. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--text-base)/1.5 var(--body); font-variant-numeric: tabular-nums; -webkit-text-size-adjust: 100%; }
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 700; line-height: 1.05; letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; }
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-lg); }
+h3 { font-size: var(--text-md); font-weight: 600; letter-spacing: .05em; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: var(--s4); top: -100px; z-index: 20; padding: var(--s2) var(--s3); border-radius: var(--radius-sm); background: var(--accent); color: var(--panel); font-weight: 600; text-decoration: none; }
+.skip:focus { top: var(--s2); }
+.logo { display: inline-block; flex: none; object-fit: contain; vertical-align: middle; }
+.chip.logo { border-radius: 50%; box-shadow: 0 0 0 1px var(--line); }
+
+/* ---------- 3. Layout ---------- */
+.container { width: 100%; max-width: var(--page-max); margin-inline: auto; padding-left: var(--gutter-l); padding-right: var(--gutter-r); }
+.main { display: grid; gap: var(--s6); padding-block: var(--s5) var(--s7); }
+.main > *, .stack > * { min-width: 0; }
+.stack { display: grid; gap: var(--s6); }
+.intro { display: grid; gap: var(--s2); }
+.status { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); font-size: var(--text-sm); color: var(--muted); }
+.status b { color: var(--ink); font-weight: 600; }
+.section { display: grid; gap: var(--s4); }
+.section-head { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; }
+.section-head p { color: var(--muted); font-size: var(--text-sm); }
+
+/* ---------- 4. Header and navigation ---------- */
+.site-header { background: var(--panel); border-bottom: 1px solid var(--line); }
+/* Tabs on the left, theme switch on the right, on every screen size. Small phones get tighter tabs so all three fit. */
+@media (max-width: 400px) { .header-bar .tabs a { padding: 0 var(--s1); font-size: var(--text-sm); letter-spacing: .03em; } }
+.header-bar { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--s2); }
+/* Header: the menu button, the sport you're in, that sport's tabs, and the sun/moon theme button. */
+.sport-now { display: inline-flex; align-items: center; gap: 6px; padding-right: var(--s3); border-right: 1px solid var(--line); font: 700 var(--text-sm)/1 var(--display); letter-spacing: .06em; color: var(--ink); white-space: nowrap; }
+.sport-now img { display: block; height: 24px; width: auto; }
+@media (max-width: 599px) { .sport-now { padding-right: var(--s2); gap: 4px; } }
+/* Menu at the top left: every page, then the night-mode switch last. */
+.menu { position: relative; margin-left: calc(-1 * var(--s2)); }
+/* The menu button: three lines and the sport being shown. */
+.menu-btn img.menu-sport { display: block; height: 24px; width: auto; }
+.menu-btn .menu-name { font: 700 var(--text-sm)/1 var(--display); letter-spacing: .06em; }
+.menu-panel a span { font: 700 var(--text-md)/1 var(--display); letter-spacing: .05em; }
+.menu-btn svg.menu-caret { width: 14px; height: 14px; }
+/* The sport switch stands apart from the page tabs. */
+
+.menu-panel a img.menu-logo { display: block; height: 24px; width: 28px; object-fit: contain; }
+.menu-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.menu-btn, .menu-btn:hover, .menu-btn[aria-expanded="true"] { border-color: transparent; background: transparent; box-shadow: none; }
+.menu-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; display: grid; min-width: 200px; padding: var(--s2) 0; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.menu-panel[hidden] { display: none; }
+.menu-panel a, .menu-theme { display: flex; align-items: center; gap: var(--s3); min-height: 44px; padding: 0 var(--s4); color: var(--ink); text-decoration: none; font: 600 var(--text-sm)/1 var(--body); }
+.menu-panel a { font: 700 var(--text-md)/1 var(--display); letter-spacing: .05em; }
+.menu-panel a:hover, .menu-theme:hover { background: var(--accent-soft); }
+.menu-panel a[aria-current] { box-shadow: inset 3px 0 0 var(--accent); }
+.menu-label { padding: var(--s3) var(--s4) var(--s1); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.menu-panel hr { margin: var(--s2) 0; border: 0; border-top: 1px solid var(--line); }
+.menu-theme { width: 100%; margin: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.menu-theme svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.menu-theme span:first-of-type { flex: 1; }
+.menu-theme .switch { position: relative; width: 34px; height: 20px; flex: none; background: var(--bar-track); border: 1px solid var(--line); border-radius: 10px; transition: background .15s; }
+.menu-theme .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.menu-theme[aria-checked="true"] .switch { background: var(--accent); border-color: var(--accent); }
+.menu-theme[aria-checked="true"] .switch::after { transform: translateX(14px); background: var(--panel); }
+.tabs { display: flex; gap: var(--s1); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabs a { display: inline-flex; flex: 1 1 auto; justify-content: center; align-items: center; min-height: 44px; padding: 0 var(--s2); color: var(--muted); text-decoration: none; font: 600 var(--text-base)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; border-bottom: 3px solid transparent; white-space: nowrap; }
+.tabs a:hover { color: var(--ink); }
+.tabs a:focus-visible { outline-offset: -2px; }
+.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+@media (min-width: 700px) {
+  .tabs a { flex: none; min-height: 60px; padding: 0 var(--s3); font-size: var(--text-md); }
+}
+
+/* ---------- 5. Controls ---------- */
+.toolbar, .filters { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s4); align-items: end; }
+.ctl { display: grid; gap: var(--s1); min-width: 0; }
+.ctl > label, .ctl > span { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+select, input[type=search], .btn { min-height: 40px; font: 500 var(--text-sm) var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--s2) var(--s3); }
+select { max-width: 100%; }
+input[type=search] { width: 100%; min-width: 0; }
+.btn { cursor: pointer; font-weight: 600; }
+.btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+.icon-btn { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; flex: none; }
+.icon-btn, .icon-btn:hover { border-color: transparent; background: transparent; }
+.icon-btn:hover { color: var(--accent); }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.progress { display: flex; gap: var(--s3); align-items: center; min-height: 40px; font-size: var(--text-sm); color: var(--muted); }
+.progress .track { width: 120px; height: 6px; background: var(--bar-track); border-radius: 0; overflow: hidden; }
+.progress .fill { height: 100%; background: var(--bar); width: 0; }
+.picks-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); flex: 1 1 100%; font-size: var(--text-sm); color: var(--muted); }
+.picks-bar b { color: var(--ink); font-weight: 600; }
+@media (min-width: 900px) {
+  .picks-bar { flex: 1 1 260px; justify-content: flex-end; text-align: right; }
+}
+
+/* ---------- 6. Projected field ---------- */
+.seeds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+.seed { display: grid; grid-template-columns: auto 1fr; column-gap: var(--s2); align-items: baseline; width: 100%; min-height: 56px; padding: var(--s2) var(--s3); font: inherit; color: var(--ink); text-align: left; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow); }
+.seed:hover { border-color: var(--accent); }
+.seed[aria-expanded="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.seed .n { font: 700 var(--text-sm) var(--display); color: var(--muted); }
+.seed .ab { display: flex; align-items: center; gap: var(--s1); min-width: 0; font: 700 var(--text-md)/1.05 var(--display); }
+.seed .logo { width: 20px; height: 20px; }
+.seed .pc { grid-column: 2; font-size: var(--text-xs); color: var(--muted); }
+.out { font-size: var(--text-sm); color: var(--muted); }
+.out b { color: var(--ink); font-weight: 600; }
+.field-detail { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.fd-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s4); padding: var(--s4); border-bottom: 1px solid var(--line); }
+.fd-head .logo { width: 32px; height: 32px; }
+.field-team { display: flex; align-items: center; gap: var(--s3); margin-inline-end: auto; }
+.field-team b { display: block; font: 700 var(--text-lg)/1.1 var(--display); text-transform: uppercase; }
+.field-pick { display: flex; align-items: center; gap: var(--s3); }
+@media (min-width: 560px) { .seeds { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 900px) { .seeds { grid-template-columns: repeat(6, minmax(0, 1fr)); } .seed .ab { font-size: var(--text-lg); } .seed .logo { width: 22px; height: 22px; } }
+
+/* ---------- 7. Odds table ----------
+   Fixed widths keep columns still when ratings or scores change. Phones show team, pick and Make CFP;
+   the other columns appear from 900px, and the table scrolls sideways until it fits. */
+/* Phones: the table scrolls inside about half the screen, leaving room to scroll the page around it.
+   svh ignores the browser bar, so the height doesn't jump while scrolling; vh is the fallback. */
+.table-wrap { overflow: auto; max-height: 55vh; max-height: 55svh; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); transition: opacity .2s; }
+.table-wrap.busy { opacity: .55; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; }
+.odds-table { table-layout: fixed; }
+.odds-table .sec, .odds-table .tc { display: none; }
+/* Conf. (tablets and up), Rec and Index. */
+.c-cn { width: 96px; } .c-rec { width: 44px; } .c-idx { width: 50px; }
+/* Compact phone view: Team gets a set width and Rec takes the spare room, so records sit right after the names. */
+@media (max-width: 599px) {
+  .odds-table:not(.expanded) .c-team { width: 190px; }
+  .odds-table:not(.expanded) .c-rec { width: auto; }
+}
+@media (max-width: 519px) { .odds-table:not(.expanded) .c-team { width: 92px; } }
+.odds-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odds-table th.c-idx { text-align: right; }
+.odds-table th.c-rec, .odds-table td.rec { text-align: left; }
+.odds-table td.l.c-cn-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.cn-short { display: none; }
+@media (max-width: 599px) {
+  .odds-table:not(.expanded) .cn-long { display: none; }
+  .odds-table:not(.expanded) .cn-short { display: inline; }
+  .odds-table:not(.expanded) .c-cn { width: 46px; }
+  .odds-table:not(.expanded) td.c-cn-cell, .odds-table:not(.expanded) th.c-cn { padding-inline: 4px; }
+}
+@media (max-width: 359px) { .odds-table:not(.expanded) .c-team { width: 64px; } }
+/* Tablets: Conf. takes the spare room, so it sits right after the team names. */
+@media (min-width: 600px) and (max-width: 899px) { .odds-table:not(.expanded) .c-cn { width: auto; } }
+.c-rk { width: var(--rk-w); } .c-pick { width: 56px; } .c-cfp { width: 66px; }
+.odds-table td.pick { padding-inline: 2px; }
+/* Phones: the stacked scoreboard column. Wide screens and the full table use This week instead. */
+.ss { display: grid; gap: 1px; font-size: var(--text-xs); line-height: 1.25; }
+/* Mini scoreboards: no bold and no highlighted team, just names and scores. */
+.ss-r { display: grid; grid-template-columns: 3.4em auto; justify-content: start; color: var(--ink); }
+.ss-s { font: inherit; } /* same type and height as the team name */
+.ss-r.lead .ss-t, .ss-r.lead .ss-s { font-weight: 700; }
+/* The This week column uses the same stack, a size up. */
+.next .ss { font-size: var(--text-sm); }
+.next .ss + small { margin-top: 3px; }
+th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+th button { all: unset; cursor: pointer; }
+th abbr[title] { text-decoration: none; }
+th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
+th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
+th.l, td.l { text-align: left; }
+td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.odds-table td.team-col, .odds-table td.l { white-space: normal; overflow-wrap: break-word; }
+.first { position: sticky; left: 0; z-index: 2; background: var(--panel); text-align: left; }
+th.first { z-index: 4; }
+/* CFP and Model rank: narrow, centered numbers in the display face. */
+.odds-table .c-rk { text-align: center; }
+.odds-table td.c-rk { font: 600 var(--text-md) var(--display); color: var(--muted); }
+th.team-col, td.team-col { text-align: left; }
+th.pick, td.pick { text-align: center; }
+/* Extra padding at the table's two ends. On phones the last visible column is Make CFP. */
+.odds-table th:first-child, .odds-table tr:not(.detail) > td:first-child { padding-left: var(--s3); }
+.odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s3); }
+.teamcell { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); align-items: center; }
+.teamcell .logo { width: 24px; height: 24px; }
+.tname { all: unset; cursor: pointer; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; line-height: 1.15; }
+.tname:hover { text-decoration: underline; }
+/* Small phones show the team abbreviation so the name isn't cut off; the full table keeps full names. */
+.tn-short { display: none; }
+@media (max-width: 519px) { .odds-table:not(.expanded) .tn-long { display: none; } .odds-table:not(.expanded) .tn-short { display: inline; } }
+@media (max-width: 359px) { .odds-table:not(.expanded) .teamcell { grid-template-columns: minmax(0, 1fr); } .odds-table:not(.expanded) .teamcell .logo { display: none; } }
+.tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tmeta { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
+.next { font-size: var(--text-sm); }
+.next small { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
+.next small b { font-weight: inherit; color: var(--ink); }
+.next .logo { width: 18px; height: 18px; margin-inline: 1px 2px; }
+/* Live game in the table: a small scoreboard, away on the left and home on the right. */
+/* Under the team name on phones: no logos and tighter spacing, so it fits the column. */
+.odds { display: grid; gap: 3px; justify-items: end; }
+/* Make CFP shading fills the whole cell, top to bottom. A soft sage green that tops out at 40% strength. */
+.odds-table td.odds-cell, .odds-table td.pct-cell { background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
+/* Make CFP uses the same type as the other odds columns. */
+.odds .v { display: block; text-align: right; font: inherit; line-height: 1.2; }
+.odds small { font-size: var(--text-xs); line-height: 1; }
+.mini { display: inline-flex; vertical-align: middle; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.mini button.pick-box { display: block; width: 28px; height: 28px; padding: 0; background: transparent; border: 0; color: var(--ink); font: 700 var(--text-sm) var(--body); cursor: pointer; }
+.mini button.pick-box:hover { background: var(--accent-soft); }
+.mini button.pick-w, .mini button.pick-w:hover { background: var(--up); color: var(--panel); }
+.mini button.pick-l, .mini button.pick-l:hover { background: var(--down); color: var(--panel); }
+.pick-bye { font-size: var(--text-xs); color: var(--muted); }
+.nx-short { display: none; }
+@media (max-width: 899px) { .odds-table:not(.expanded) .nx-long { display: none; } .odds-table:not(.expanded) .nx-short { display: inline; } }
+/* Next column: the W/L box with next week's opponent under it. */
+.nx-cell { display: inline-grid; justify-items: center; gap: 2px; max-width: 100%; }
+.nx-vs { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.1; color: var(--muted); }
+.empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }
+/* Phones: Show all columns brings back the full table. It scrolls sideways with CFP and Team pinned. */
+.table-bar { display: flex; justify-content: flex-end; padding: 4px var(--s3); background: var(--panel); border: 1px solid var(--line); border-bottom: 0; }
+@media (max-width: 899px) { .table-bar + .table-wrap { margin-top: calc(-1 * var(--s4)); } } /* cancel the board gap so the bar sits on the table */
+.table-toggle { all: unset; cursor: pointer; padding: 6px 0; font: 600 var(--text-xs)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.table-toggle:hover { text-decoration: underline; }
+.table-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 899px) {
+  /* No scrollbar cutting through the header line; the table still scrolls by touch, wheel or trackpad. */
+  .table-wrap { scrollbar-width: none; }
+  .table-wrap::-webkit-scrollbar { display: none; }
+  /* CFP, Pick and Make CFP share one narrow width; the odds sit centred with a two-line heading. */
+  .odds-table:not(.expanded) th.c-cfp, .odds-table:not(.expanded) td.odds-cell { padding-inline: 4px; text-align: center; white-space: normal; }
+  .odds-table:not(.expanded) .odds { justify-items: center; }
+  .odds-table:not(.expanded) .odds .v { text-align: center; }
+  .odds-table.expanded { min-width: 860px; }
+  .odds-table.expanded .sec, .odds-table.expanded .tc { display: table-cell; }
+  .odds-table.expanded .c-pick { width: 56px; } .odds-table.expanded .c-cfp { width: 80px; }
+  .odds-table.expanded th { white-space: normal; }
+  .odds-table.expanded .c-team { width: 160px; }
+  .odds-table.expanded .c-bye, .odds-table.expanded .c-conf, .odds-table.expanded .c-title { width: 72px; }
+  .odds-table.expanded .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); }
+  .odds-table.expanded th.team-col { z-index: 4; }
+}
+/* Tablets: room for the Conf. column, so the team column stops at a set width. */
+@media (min-width: 600px) and (max-width: 899px) {
+  .odds-table .tc { display: table-cell; }
+  .odds-table:not(.expanded) .c-team { width: 190px; }
+}
+@media (min-width: 900px) {
+  .table-wrap { max-height: 82vh; }
+  /* Each column sized to its content; headings wrap onto two lines rather than widening a column. */
+  .odds-table { min-width: 834px; }
+  .odds-table .sec, .odds-table .tc { display: table-cell; }
+  .c-cn { width: 120px; } .c-rec { width: 60px; } .c-idx { width: 68px; }
+  .mini button.pick-box { width: 30px; height: 30px; }
+  .odds-table th { white-space: normal; }
+  :root { --rk-w: 48px; }
+  .c-team { width: 190px; }
+  /* Pick through Win title share one width; the last also holds the end padding. */
+  .c-pick, .c-cfp, .c-bye, .c-conf, .c-title { width: 72px; }
+  .c-title { width: 84px; }
+  .odds-table th:first-child, .odds-table tr:not(.detail) > td:first-child { padding-left: var(--s4); }
+  .odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s2); }
+  .odds-table th:last-child, .odds-table tr:not(.detail) > td:last-child { padding-right: var(--s4); }
+  /* CFP, Model rank and Team stay pinned on the left: offsets are the widths of the columns before them. */
+  .odds-table .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); }
+  .odds-table th.team-col { z-index: 4; }
+  th { padding-inline: var(--s2); }
+  td { padding: 5px var(--s2); }
+  .teamcell { grid-template-columns: 24px minmax(0, 1fr); }
+  .teamcell .logo { width: 24px; height: 24px; }
+  .table-bar { display: none; }
+}
+
+/* Small phones: narrower pick and odds columns leave room for team names. */
+@media (max-width: 400px) {
+  .c-cfp { width: 58px; }
+  .c-pick { width: 50px; }
+  .c-idx { width: 42px; }
+  .odds-table td.num, .odds-table th.c-rec, .odds-table th.c-idx { padding-inline: 3px; }
+  :root { --rk-w: 38px; }
+  .teamcell { grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
+  .teamcell .logo { width: 20px; height: 20px; }
+  .odds-table th, .odds-table td { padding-inline: 6px; }
+}
+
+/* ---------- 8. Team details (table rows and the field panel) ---------- */
+tr.detail td { padding: 0; white-space: normal; text-align: left; background: var(--bg); }
+.field-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--s3) var(--s4); margin: 0; padding: var(--s4); border-bottom: 1px solid var(--line); }
+.field-stats dt { font-size: var(--text-xs); color: var(--muted); }
+.field-stats dd { margin: 2px 0 0; font: 700 var(--text-lg)/1.1 var(--display); }
+.field-stats dd small { display: block; font: 400 var(--text-xs)/1.3 var(--body); }
+.detail-inner { display: grid; gap: var(--s5); padding: var(--s4); position: sticky; left: 0; width: min(100%, 1100px); }
+.detail-inner > div { min-width: 0; }
+.detail-inner h3 { margin-bottom: var(--s2); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+.field-detail .detail-inner { position: static; width: auto; }
+.detail-inner .split { width: 100%; margin: 0 0 var(--s2); border-collapse: collapse; }
+.detail-inner .split th, .detail-inner .split td { position: static; padding: 2px 0 2px var(--s3); border: 0; background: transparent; text-align: right; }
+.detail-inner .split thead th { padding-bottom: var(--s1); border-bottom: 1px solid var(--line); font-size: var(--text-xs); color: var(--muted); }
+.detail-inner .split thead td { border-bottom: 1px solid var(--line); }
+.detail-inner .split tbody th { padding-left: 0; font: inherit; letter-spacing: normal; text-transform: none; color: var(--muted); text-align: left; white-space: normal; }
+.detail-inner .split tbody td { font-weight: 600; white-space: nowrap; }
+.detail-inner .split tbody tr:first-child > * { padding-top: var(--s2); }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s4); margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 600; text-align: right; }
+.sched { display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s4); }
+.sched span:nth-child(even) { font-weight: 600; text-align: right; }
+.sched .logo { width: 18px; height: 18px; margin-inline-end: 5px; }
+/* A team's played games as a compact horizontal form strip (opponent + W/L), not a vertical list. */
+.form { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: center; }
+.form-g { display: inline-flex; align-items: center; gap: 3px; }
+.form-g .logo { width: 20px; height: 20px; }
+.res { font: 700 var(--text-sm)/1 var(--display); }
+.res-w { color: var(--up); }
+.res-l { color: var(--down); }
+.sched-rec { font: 700 var(--text-sm) var(--display); font-variant-numeric: tabular-nums; }
+.live { font: 700 var(--text-xs) var(--display); letter-spacing: .06em; color: var(--down); }
+.hist { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--muted); }
+.hist div { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
+.hist i { display: block; width: 100%; min-height: 1px; background: var(--bar); border-radius: 0; }
+.hist-x { display: flex; gap: 2px; margin-top: 3px; font-size: 11px; color: var(--muted); }
+.hist-x span { flex: 1; text-align: center; }
+/* Seed chart with a y axis (NFL panel): labels at the top of the scale, half way and zero, and light lines. */
+.hist-y { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 6px; }
+.hist-ax { position: relative; height: 74px; min-width: 26px; font: 600 10px/1 var(--display); color: var(--muted); }
+.hist-ax span { position: absolute; right: 0; transform: translateY(-50%); }
+.hist-y .hist { background: linear-gradient(var(--line), var(--line)) 0 0 / 100% 1px no-repeat, linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat; }
+@media (min-width: 700px) { .detail-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s6); padding: var(--s4) var(--s5) var(--s5); } }
+/* College panels: the résumé strip spans the top; below it the schedule and odds lists, then the AP poll and
+   seed charts. Two across on tablets (lists in one row, charts in the next), four across on wide screens. */
+@media (min-width: 700px) { .detail-inner:has(> .resume) { row-gap: var(--s5); } }
+.detail-inner > .resume { grid-column: 1 / -1; padding-bottom: var(--s4); border-bottom: 1px solid var(--line); }
+@media (min-width: 900px) { .narrow-only { display: none; } }
+
+/* ---------- 9. Scoreboard ---------- */
+.live-board { display: grid; gap: var(--s7); }
+.live-group { display: grid; gap: var(--s3); }
+/* Scores page: one Week heading; In progress and Upcoming get a small label when both kinds of games show. */
+.week-head { font: 700 var(--text-xl)/1 var(--display); letter-spacing: .03em; text-transform: uppercase; color: var(--ink); }
+.live-group h4 { font: 700 var(--text-md)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.live-note { font-size: var(--text-sm); color: var(--muted); }
+.live-note b { color: var(--ink); font-weight: 600; }
+#live-head:empty { display: none; }
+/* Conference on the left, Sort by pushed to the right, between the week heading and the games. */
+.sb-bar { justify-content: space-between; }
+.sb-bar .sb-sort { margin-left: auto; }
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: var(--s3); }
+.live-empty { padding: var(--s5); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); }
+.lg { display: grid; gap: var(--s2); align-content: start; padding: var(--s3) var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.lg-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); font-size: var(--text-sm); color: var(--muted); }
+.lg-top b { color: var(--ink); font-weight: 600; }
+.lg-live { display: inline-flex; align-items: center; gap: var(--s2); }
+/* Time remaining in a live game. */
+.lg-clock { color: #d42a1f; }
+:root[data-theme="dark"] .lg-clock { color: #ff6b5e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lg-clock { color: #ff6b5e; } }
+.upset-pill { display: inline-block; padding: 2px 6px; background: var(--warn); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+/* Score cards: team, score, win chance and Make CFP. */
+.lg-rows { display: grid; grid-template-columns: minmax(0, max-content) minmax(40px, 1fr) 46px 80px; align-items: center; gap: var(--s1) var(--s2); }
+/* Upcoming games: win chance, Make CFP, and Make CFP if they win or lose. */
+.lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px 64px 64px; gap: var(--s1) 6px; }
+/* Games under way (NFL): score, live win chance, playoffs now, and if they win or lose. */
+.lg-rows.inplay { grid-template-columns: minmax(0, max-content) minmax(32px, 1fr) 38px 58px 58px 58px; gap: var(--s1) 5px; }
+/* Cards size themselves by their own width, giving things up in this order so nothing overlaps:
+   narrower number columns, then the rank, record and the word Kickoff, and only on the tightest
+   cards If win and If loss. */
+.lg { container-type: inline-size; }
+@container (max-width: 22rem) {
+  .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 30px 50px 50px 50px; gap: var(--s1) 3px; }
+  .lg-rows.pre .lg-cfp { padding-inline: 4px; }
+  .lg-rows.inplay { grid-template-columns: minmax(0, max-content) minmax(28px, 1fr) 32px 48px 48px 48px; gap: var(--s1) 3px; }
+  .lg-rows.inplay .lg-cfp { padding-inline: 4px; }
+  .lg-rows.pre .lg-team { gap: 6px; }
+}
+@container (max-width: 20rem) {
+  .lg-team .lg-rec, .lg-team .lg-rank { display: none; }
+}
+@container (max-width: 16rem) {
+  .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px; gap: var(--s1) var(--s2); }
+  .lg-rows.inplay { grid-template-columns: minmax(0, max-content) minmax(32px, 1fr) 40px 64px; gap: var(--s1) var(--s2); }
+  .lg-if { display: none; }
+}
+.lg-rows .h { align-self: end; font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.lg-team { display: flex; align-items: center; gap: var(--s2); min-width: 0; font: 600 var(--text-md)/1.1 var(--display); }
+.lg-team .logo { width: 22px; height: 22px; }
+/* CFP rank sits between the logo and the abbreviation. */
+.lg-team small.lg-rec { font: 500 var(--text-xs) var(--body); color: var(--muted); white-space: nowrap; }
+.lg-team small.lg-rank { margin-right: 4px; font: 500 var(--text-xs) var(--body); color: var(--muted); }
+.lg-score { text-align: right; font: 600 21px/1 var(--display); color: var(--muted); }
+.lg-score.lead { color: var(--ink); font-weight: 700; }
+/* Scores sit right beside the team names; the spare room goes after them. */
+.lg-rows:not(.pre) .lg-score, .lg-rows:not(.pre) > .h:nth-child(2) { text-align: left; padding-left: var(--s3); }
+/* Win and Make CFP share one font so the projection columns read alike. */
+.lg-num, .lg-cfp { text-align: right; font: 500 var(--text-sm)/1.1 var(--body); }
+.lg-cfp { padding: 4px 6px; border-radius: 0; background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
+.final-pill { display: inline-block; padding: 0; border: 0; background: none; color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+
+/* ---------- 9b. Playoff bracket ----------
+   Flat boxes with square corners, a header bar per round and an accent bar on each winner.
+   Phones stack the rounds. From 1000px they sit side by side, each round's games spread evenly so a game
+   lines up between the games that feed it, and js/app.js draws the connecting lines. */
+.bk-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s3) var(--s4); }
+.bk-head .section-head { flex: 1 1 320px; }
+.bk-toggle[aria-pressed="true"], .bk-toggle[aria-pressed="true"]:hover { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.bracket { display: grid; gap: var(--s5); }
+.bk-rounds { position: relative; display: grid; gap: var(--s5); }
+.bk-round { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); gap: var(--s3); min-width: 0; }
+.bk-round h3 { padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; color: var(--ink); }
+/* Bowl branding: dates and sites on rounds and games. */
+.bk-round h3 small { display: block; margin-top: 2px; font: 500 11px/1.3 var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
+/* Each game is a card: a header with the bowl or site and the time and TV, then the two teams. */
+.bk-game { position: relative; z-index: 1; min-width: 0; container-type: inline-size; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.bk-where { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 5px var(--s3); border-bottom: 1px solid var(--line); background: var(--bar-track); font-size: 12px; line-height: 1.3; color: var(--muted); }
+.bk-place, .bk-air { display: inline-flex; align-items: center; gap: 6px; }
+.bk-place { color: var(--ink); font-weight: 600; }
+.bk-place { flex: 1 1 auto; min-width: 0; }
+.bk-place > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bk-air { flex: none; margin-left: auto; gap: 5px; }
+.bk-where { overflow: hidden; }
+/* Narrow cards keep one line by trimming: first the bowl name (its logo stays, name on hover), then "ET", then smaller network logos. */
+@container (max-width: 330px) { .bk-bowl + span { display: none; } }
+/* The site after a game's name, where the card has room. */
+.bk-place .bk-loc { flex: 0 1 auto; color: var(--muted); font-weight: 500; }
+.bk-place .bk-loc::before { content: "· "; }
+.bk-place .bk-title, .bk-place img + span:not(.bk-loc) { flex: none; }
+/* A site that would be cut off is hidden by the page (fitLocs); with the bowl name hidden it needs no dot. */
+.bk-place .bk-loc.cut { display: none; }
+@container (max-width: 330px) { .bk-bowl ~ .bk-loc::before { content: none; } }
+@container (max-width: 270px) { .bk-et { display: none; } .bk-air, .bk-air .net-logos { gap: 4px; } }
+@container (max-width: 240px) {
+  .bk-where { gap: 6px; padding-inline: var(--s2); font-size: 11px; }
+  .bk-air .net-logos img { height: 11px; max-width: 32px; }
+  .bk-air .net-logos img:is(.net-espn, .net-espn2, .net-espnu, .net-espnews) { height: 8px; }
+  .bk-air .net-logos img:is(.net-trutv, .net-hbomax) { height: 10px; }
+}
+/* Card headers are always one line: the bowl or site on the left (its name trims with … if space runs short), the time and networks on the right. */
+.bk-where b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+/* TV network badges: the network's name in its brand color, with the time beside it. */
+.tv { display: inline-block; padding: 1px 5px; background: var(--tv); color: #fff; font: 700 10px/1.4 var(--display); letter-spacing: .04em; white-space: nowrap; }
+.tv + .tv { margin-left: 3px; }
+.lg-kickoff { color: var(--ink); font-weight: 600; }
+.tv-list { margin-left: auto; }
+.tv-list, .lg-when { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+/* Network logos in their own colors on the light theme; white on the dark theme so the black ones show. */
+.net-logos { display: inline-flex; align-items: center; gap: 6px; }
+.net-logos img { display: block; height: 14px; width: auto; max-width: 44px; }
+.net-logos img.net-espn, .net-logos img.net-espn2, .net-logos img.net-espnu, .net-logos img.net-espnews { height: 10px; }
+.net-logos img.net-trutv, .net-logos img.net-hbomax { height: 12px; }
+:root[data-theme="dark"] .net-logos img { filter: brightness(0) invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img { filter: brightness(0) invert(1); } }
+/* Logos on a solid shape of their own keep their colors on the dark theme. */
+:root[data-theme="dark"] :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-accnetwork, .net-logos img.net-accn) { filter: none; }
+/* NBC: black lettering turns white while the peacock keeps its colors. */
+:root[data-theme="dark"] .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); } }
+/* Dark mode: NBA TV (a white badge) and TBS keep their own colours; NHL Network's black-and-white shield is inverted. */
+:root[data-theme="dark"] .net-logos img:is(.net-nbatv, .net-tbs) { filter: none; }
+:root[data-theme="dark"] .net-logos img:is(.net-nhlnetwork, .net-nhlnet) { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img:is(.net-nbatv, .net-tbs) { filter: none; } :root:not([data-theme="light"]) .net-logos img:is(.net-nhlnetwork, .net-nhlnet) { filter: invert(1) hue-rotate(180deg); } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-accnetwork, .net-logos img.net-accn) { filter: none; } }
+/* ABC is a filled circle with cut-out letters: a plain color flip keeps the letters. */
+:root[data-theme="dark"] .net-logos img[alt="ABC"] { filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img[alt="ABC"] { filter: invert(1); } }
+.bk-bowl { display: block; height: 26px; width: auto; }
+/* The championship logo has black laces and lettering: on the dark theme flip them to white and turn the hue back so the gold stays gold. */
+:root[data-theme="dark"] .bk-bowl-title { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bk-bowl-title { filter: invert(1) hue-rotate(180deg); } }
+/* Rose Bowl: its dark lettering turns white in dark mode; the rose keeps its color. */
+:root[data-theme="dark"] .bk-bowl-rose { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bk-bowl-rose { filter: invert(1) hue-rotate(180deg); } }
+.bk-games { display: grid; gap: var(--s3); }
+.bk-box { position: relative; background: var(--panel); overflow: hidden; }
+.bk-team { display: grid; grid-template-columns: 18px 22px minmax(0, 1fr) auto; align-items: center; gap: var(--s2); min-height: 46px; padding: 0 var(--s3); border-bottom: 1px solid var(--line); color: var(--ink); }
+.bk-team:last-child { border-bottom: 0; }
+.bk-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s2); }
+/* Teams whose opponent is known are buttons: select one to advance it. */
+button.bk-team { width: 100%; margin: 0; font: inherit; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+button.bk-team:last-child { border-bottom: 0; }
+button.bk-team:hover { background: var(--accent-soft); }
+button.bk-team:focus-visible { outline-offset: -2px; }
+.bk-team[aria-pressed="true"] { background: var(--accent-soft); }
+/* Pickable bracket rows end in the Rankings table's W/L box. */
+.bk-team.picks { grid-template-columns: 18px 22px minmax(0, 1fr) auto 30px; }
+.bk-team .pick-box { display: grid; place-items: center; width: 28px; height: 28px; color: var(--ink); font: 700 var(--text-sm) var(--body); }
+.bk-team:hover .pick-box { background: var(--accent-soft); }
+.bk-team .pick-box.pick-w, .bk-team:hover .pick-box.pick-w { background: var(--up); color: var(--panel); }
+.bk-team .pick-box.pick-l, .bk-team:hover .pick-box.pick-l { background: var(--down); color: var(--panel); }
+.bk-team.win { box-shadow: inset 3px 0 0 var(--accent); }
+.bk-team.win .bk-name, .bk-team.win .bk-p { font-weight: 700; }
+.bk-team.lose { color: var(--muted); }
+.bk-team.lose .logo { opacity: .5; }
+.bk-seed { font: 600 var(--text-sm) var(--display); color: var(--muted); text-align: left; } /* left, so TBD rows line up with the seed numbers */
+.bk-team .logo { width: 22px; height: 22px; }
+.bk-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.bk-name small { margin-left: var(--s2); font: 600 10px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.bk-team.tbd { color: var(--muted); }
+.bk-team.tbd .bk-name { grid-column: 3 / -1; padding-block: var(--s1); } /* lines up with the team names above */
+.bk-team.tbd .bk-name small { display: block; margin: 0; font: 400 var(--text-xs)/1.2 var(--body); letter-spacing: 0; text-transform: none; overflow: hidden; text-overflow: ellipsis; }
+.bk-p { font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; }
+.bk-lines { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: visible; }
+.bk-lines path { fill: none; stroke: var(--muted); stroke-opacity: .5; stroke-width: 1; }
+.bk-champ { display: grid; gap: var(--s2); padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 0; }
+.bk-champ-team { display: flex; align-items: center; gap: var(--s3); }
+.bk-champ-team .logo { width: 40px; height: 40px; }
+.bk-label { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.bk-champ-name { font: 700 var(--text-xl)/1.05 var(--display); text-transform: uppercase; }
+.bk-champ > p { color: var(--muted); font-size: var(--text-sm); }
+.bk-champ b { color: var(--ink); font-weight: 600; }
+.bk-titles h3 { margin-bottom: var(--s3); padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; }
+.bk-titles ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s2); }
+.bk-titles li { display: flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s3); background: var(--panel); border: 1px solid var(--line); border-radius: 0; }
+.bk-titles li span { flex: 1; min-width: 0; font-weight: 500; }
+.bk-titles li .logo { width: 20px; height: 20px; }
+@media (min-width: 560px) { .bk-round:first-child .bk-games, .bk-round:nth-child(2) .bk-games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) {
+  .bk-rounds { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--s6); }
+  .bk-round:first-child .bk-games, .bk-round:nth-child(2) .bk-games { grid-template-columns: none; }
+  .bk-games { display: flex; flex-direction: column; justify-content: space-around; gap: var(--s4); }
+}
+
+/* ---------- NFL page ---------- */
+/* Standings use the college table's styles; these add the conference or division rows and the Win div column. */
+/* Grouped views (Conference, Division): the table's header row gives way to one per group, each a full set of
+   column headings with the group's name under Team. They scroll with the table (top: auto) instead of sticking. */
+.odds-table.grouped > thead { display: none; }
+.odds-table tr.nfl-group th { background: var(--panel); top: auto; }
+.odds-table tr.nfl-group:not(:first-child) th { padding-top: var(--s5); border-top: 1px solid var(--line); }
+.odds-table tr.nfl-group .grp-name { color: var(--ink); font-size: 13px; letter-spacing: .05em; }
+.c-div { width: 72px; }
+.nfl-odds .odds small.ifs { display: block; margin-top: 2px; font-size: 11px; line-height: 1.25; color: var(--muted); white-space: nowrap; }
+.nfl-odds .odds small.ifs span { display: block; }
+/* Wide screens: the after-win and after-loss odds share one line, so rows stay as short as the college table's. */
+@media (min-width: 900px) {
+  .nfl-odds .c-cfp { width: 118px; }
+  .nfl-odds .odds small.ifs span { display: inline; }
+  .nfl-odds .odds small.ifs span + span::before { content: " · "; }
+}
+/* Phones: short conference and division codes stay on one line in both tables. */
+@media (max-width: 599px) { .odds-table:not(.expanded) .cn-short { font-size: 11px; letter-spacing: -.01em; white-space: nowrap; } }
+.nfl-rounds .bk-team.picks { grid-template-columns: 26px 22px minmax(0, 1fr) auto 30px; }
+/* NFL bracket: the CFB bracket's round columns. AFC games sit above NFC games in each round. */
+.nfl-bracket .bk-name small { margin-left: 4px; font: 500 var(--text-xs) var(--body); letter-spacing: 0; text-transform: none; }
+.nfl-rounds .bk-team { grid-template-columns: 26px 22px minmax(0, 1fr) auto; }
+/* Conference and Super Bowl logos sit where the bowl logos do on the college bracket. */
+.nfl-rounds .bk-afc, .nfl-rounds .bk-nfc { height: 18px; }
+.nfl-rounds .bk-big.bk-afc, .nfl-rounds .bk-big.bk-nfc { height: 24px; }
+.nfl-rounds img.bk-conf { display: block; width: auto; flex: none; }
+.nfl-rounds .bk-sb { height: 30px; }
+.nfl-half { display: grid; gap: var(--s3); }
+.nfl-rounds .bk-round { grid-template-rows: auto 1fr; }
+.nfl-rounds .bk-round:first-child .bk-games, .nfl-rounds .bk-round:nth-child(2) .bk-games { grid-template-columns: none; }
+.nfl-rounds .bk-games { display: grid; gap: var(--s5); }
+@media (min-width: 1000px) {
+  .nfl-rounds .bk-games { display: flex; flex-direction: column; justify-content: space-around; gap: var(--s7); }
+  .nfl-half { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: var(--s4); }
+  .nfl-rounds .bk-round:last-child .nfl-half { justify-content: center; }
+}
+.tv-name { font: 700 10px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.nfl-how ul { margin: 0; padding-left: 20px; display: grid; gap: var(--s2); max-width: 75ch; font-size: var(--text-sm); color: var(--muted); }
+.nfl-how h2 { font-size: var(--text-md); }
+
+/* ---------- 10. About page: one readable column ---------- */
+.about { display: grid; gap: var(--s6); max-width: 70ch; }
+.about section { display: grid; gap: var(--s3); }
+.about h3 { margin-top: var(--s2); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+.about ul { margin: 0; padding-left: 20px; display: grid; gap: var(--s2); }
+.about li b { font-weight: 600; }
+
+/* ---------- 11. Footer: a full-width band lined up with the page ---------- */
+.site-footer { background: var(--panel); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--text-sm); }
+.footer-inner { max-width: var(--page-max); margin: 0 auto; padding: var(--s6) var(--gutter-r) max(var(--s5), env(safe-area-inset-bottom, 0px)) var(--gutter-l); display: grid; gap: var(--s5); }
+.footer-brand { display: grid; gap: var(--s1); }
+.footer-brand p { max-width: 46ch; }
+/* A plain text link; the padding keeps a comfortable tap area without drawing a box. */
+.footer-link { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font: 600 var(--text-base)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; }
+.footer-link:hover { color: var(--accent); text-decoration: underline; }
+.footer-link[aria-current="page"] { color: var(--accent); }
+.footer-status { font-size: var(--text-xs); }
+.footer-fine { padding-top: var(--s4); border-top: 1px solid var(--line); font-size: var(--text-xs); }
+@media (min-width: 700px) {
+  .footer-inner { grid-template-columns: 1fr auto; align-items: center; column-gap: var(--s6); }
+  .footer-link { justify-self: end; }
+  .footer-fine, .footer-status { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) { .table-wrap { transition: none; } }
+
+/* Every team row is the same height in both tables, whatever the Next cell holds (a pick box, Bye or a dash). */
+.odds-table > tbody > tr:not(.detail):not(.nfl-group) > td { height: 58px; }
+/* Tablets: Conf./Div. at a set width so the spare room goes to Team (names and records stay whole). */
+@media (min-width: 600px) and (max-width: 899px) { .odds-table:not(.expanded) .c-cn { width: 110px; } }
+/* Wide screens: NFL names run longer ("Jacksonville Jaguars"), so Team gets more of the width. */
+@media (min-width: 900px) { .nfl-odds .c-team { width: 230px; } .nfl-odds .c-cn { width: 90px; } .nfl-odds .c-cfp { width: 110px; } }
+/* NHL: room for "Metropolitan" on one line. */
+@media (min-width: 1100px) { .nhl-odds .c-cn { width: 108px; } }
+/* Narrow desktops: NFL divisions as short codes, so the table still fits without scrolling sideways. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .nfl-odds .c-cn { width: 58px; } .nfl-odds .c-team { width: 220px; } .nfl-odds .c-cfp { width: 104px; }
+  .nfl-odds .cn-long { display: none; } .nfl-odds .cn-short { display: inline; font-size: 11px; white-space: nowrap; }
+}
+/* NBA bracket: five rounds (play-in, first round, semifinals, conference finals, Finals) across, and a
+   Finals logo sized like the Super Bowl one. */
+@media (min-width: 1000px) { .bk-rounds.nba-rounds { grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--s5); } }
+/* Stanley Cup and Final Four marks on their games' cards. */
+/* The Stanley Cup Final shield on the Final card header. */
+.nhl-rounds img.bk-cup { height: 36px; margin-block: -4px; }
+.bk-where img.bk-ff { display: block; height: 26px; width: auto; flex: none; margin-block: -4px; }
+/* Narrow Finals card: the Finals logo stands in for its name, leaving room for the date and network. */
+@container (max-width: 220px) { .bk-nbaf + .bk-title { display: none; } }
+.nba-rounds img.bk-nbaf { display: block; height: 22px; width: auto; flex: none; }
+/* NBA bracket cards are narrow on wide screens: there they show the team abbreviation and no record; a
+   roomier card (phones, tablets) shows the full name and record. */
+.nba-rounds .bk-ab { display: none; }
+@container (max-width: 250px) {
+  .nba-rounds .bk-nm, .nba-rounds .bk-name small { display: none; }
+  .nba-rounds .bk-ab { display: inline; }
+}
+.nba-rounds .bk-team, .nba-rounds .bk-team.picks { column-gap: 6px; }
+/* Night mode: the Finals logo's black lettering turns white; the trophy keeps its color. */
+:root[data-theme="dark"] .nba-rounds img.bk-nbaf { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nba-rounds img.bk-nbaf { filter: invert(1) hue-rotate(180deg); } }
+/* The narrowest NBA cards (around 1000px wide screens) drop the team logo so the abbreviation fits. */
+@container (max-width: 190px) {
+  .nba-rounds .bk-team.picks { grid-template-columns: 14px 18px minmax(0, 1fr) auto 26px; column-gap: 4px; padding-inline: 6px; }
+  .nba-rounds .bk-team:not(.picks) { grid-template-columns: 14px 18px minmax(0, 1fr) auto; column-gap: 4px; padding-inline: 6px; }
+  .nba-rounds .bk-team .logo { width: 18px; height: 18px; }
+  .nba-rounds .bk-p { font-size: 12px; }
+  .nba-rounds .bk-team .mini .pick-box { width: 24px; height: 24px; }
+}
+.sched-more { color: var(--muted); font-size: var(--text-sm); }
+/* Team detail: the odds now and after the next game, in one row of tiles like the Scores cards. */
+.odds-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s1) var(--s2); max-width: 340px; margin-bottom: var(--s3); }
+.odds-row .h { font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+/* NBA projected wins: the average, with the low-high range under it. */
+.c-pw { width: 64px; }
+.odds-table td.pw small { display: block; font-size: 11px; line-height: 1.2; color: var(--muted); }
+/* NBA Standings has one more column (Proj. W), so Team gives up some width on narrow desktops. */
+/* Narrow desktops show the nickname ("Timberwolves") so names fit without trimming. */
+.tn-mid { display: none; }
+@media (min-width: 600px) and (max-width: 1239px) { .nba-odds:not(.expanded) .tn-long, .nba-odds.expanded .tn-long { display: none; } .nba-odds .tn-mid { display: inline; } }
+@media (min-width: 900px) and (max-width: 1099px) { .nba-odds .c-team { width: 150px; } }
+@media (min-width: 1100px) and (max-width: 1239px) { .nba-odds .c-team { width: 190px; } }
+/* Projected next CFP ranking: the rank, with its move from the current ranking. */
+.c-prk { width: 56px; }
+.odds-table td.c-prk-cell { text-align: center; font: 600 var(--text-md) var(--display); color: var(--ink); white-space: nowrap; }
+.odds-table th.c-prk { text-align: center; }
+.c-prk-cell .mv { margin-left: 3px; font: 600 10px var(--body); }
+.c-prk-cell .mv.up { color: var(--up); } .c-prk-cell .mv.down { color: var(--down); }
+/* NFL picked tie: a neutral fill, between the win green and the loss red. */
+.mini button.pick-t, .mini button.pick-t:hover { background: var(--muted); color: var(--panel); }
+/* NBC: the peacock over the wordmark is tall, so it draws larger, with negative margins so it takes the same
+   room as the other logos and nothing around it moves. */
+.net-logos img.net-nbc { height: 20px; max-width: none; margin-block: -3px; }
+@container (max-width: 240px) { .bk-air .net-logos img.net-nbc { height: 15px; margin-block: -2px; } }
+/* Score cards: each network logo drawn to a similar visual weight by its shape, with negative margins so the
+   card's top row stays 14px tall and nothing around it moves. Square marks are largest, wide wordmarks
+   smallest; object-fit keeps any logo held by max-width from squashing. */
+.lg-top .net-logos img { max-width: 58px; object-fit: contain; }
+.lg-top .net-logos img:is(.net-abc, .net-espnu, .net-tnt) { height: 20px; margin-block: -3px; }
+.lg-top .net-logos img:is(.net-btn, .net-fs1, .net-secnetwork, .net-secn, .net-cw, .net-thecw, .net-fox, .net-usanet, .net-trutv, .net-hbomax, .net-disney) { height: 17px; margin-block: -1.5px; }
+.lg-top .net-logos img:is(.net-accnetwork, .net-accn, .net-cbssn, .net-cbs, .net-peacock, .net-primevideo) { height: 15px; margin-block: -0.5px; }
+/* Night: ESPNU keeps its red and black with a thin white outline (made all white, the letters vanish); BTN
+   inverts like NBC, so the black "B1G" turns white and the blue stays blue. */
+:root[data-theme="dark"] .net-logos img.net-espnu { filter: drop-shadow(0 0 1px #fff); }
+:root[data-theme="dark"] .net-logos img.net-btn { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .net-logos img.net-espnu { filter: drop-shadow(0 0 1px #fff); }
+  :root:not([data-theme="light"]) .net-logos img.net-btn { filter: invert(1) hue-rotate(180deg); }
+}
+/* Team panel résumé: four small tiles, one summary line, then the AP poll chart. */
+.resume { display: grid; gap: var(--s3); align-content: start; }
+.rs-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
+.rs-tiles dt { font-size: var(--text-xs); color: var(--muted); }
+.rs-tiles dt abbr[title] { text-decoration: none; cursor: help; }
+.rs-tiles dd { margin: 2px 0 0; font: 700 var(--text-lg)/1.1 var(--display); }
+.rs-tiles dd small { display: block; margin-top: 2px; font: 400 var(--text-xs)/1.2 var(--body); color: var(--muted); }
+.rs-line { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.rs-line b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.ap-head { font-size: var(--text-xs); color: var(--muted); letter-spacing: .07em; text-transform: uppercase; font-weight: 600; }
+.ap-head b { color: var(--ink); margin-left: 4px; }
+.ap-chart svg { display: block; width: 100%; max-width: 360px; height: auto; margin-top: var(--s1); }
+.ap-grid { stroke: var(--line); stroke-width: 1; }
+.ap-y { fill: var(--muted); font: 600 9px var(--display); text-anchor: end; }
+.ap-x { fill: var(--muted); font: 600 9px var(--display); text-anchor: middle; }
+.ap-line { fill: none; stroke: var(--bar); stroke-width: 2; stroke-linejoin: round; }
+.ap-dot { fill: var(--bar); stroke: var(--bg); stroke-width: 1.5; }
+.ap-nr { fill: var(--bg); stroke: var(--muted); stroke-width: 1.2; }
+.ap-none { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+/* Wider panels: the tiles sit at their own width in a row, with the summary line beside them. */
+@media (min-width: 700px) {
+  .resume { grid-template-columns: auto minmax(0, 1fr); align-items: end; column-gap: var(--s6); }
+  .rs-tiles { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: auto; column-gap: var(--s6); justify-content: start; }
+  .rs-line { padding-bottom: 2px; }
+}
+.ap-chart svg { max-width: none; }
+/* Team panels fit the visible part of the table, not the full scrolling width (the wrap is the size container). */
+.table-wrap { container-type: inline-size; }
+.detail-inner { width: min(100cqw, 1100px); }
+.ap-chart svg { max-width: 300px; }
+/* Team panel games left: a pick box before each opponent. */
+.sched { align-items: center; }
+.sched-g { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.sched .mini button.pick-box { width: 24px; height: 24px; font-size: 12px; }
+.sched-g span { font-weight: inherit; text-align: left; }
+/* Team panel: the Win out toggle beside the games-left heading; filled green when every game is picked as a win. */
+.sched-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s2); }
+.sched-head h3 { margin-bottom: 0; }
+.winout-btn { flex: none; padding: 3px 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 11px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.winout-btn:hover { border-color: var(--muted); }
+.winout-btn[aria-pressed="true"] { background: var(--up); border-color: var(--up); color: var(--panel); }
+/* Team panel: Make CFP for the picks' scenario, above the seed chart. */
+.scenario { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px var(--s2); margin-bottom: var(--s3); }
+.scenario span { font-size: var(--text-xs); letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: var(--muted); }
+.scenario b { font: 700 var(--text-lg)/1 var(--display); color: var(--ink); }
+/* Best win / worst loss tiles: the opponent's current CFP rank, then its logo, at the tile number's height. */
+.rs-team { display: inline-flex; align-items: center; gap: 4px; }
+.rs-team .logo { width: 26px; height: 26px; }
+.rs-tiles dd { min-height: 26px; display: flex; align-items: center; }
+/* Phones: seven tiles wrap four, then three. */
+@media (max-width: 699px) { .rs-tiles { row-gap: var(--s3); } }
+.sched-btns { display: inline-flex; gap: 6px; flex: none; }
+.winout-btn:disabled { opacity: .4; cursor: default; }
+.winout-btn:disabled:hover { border-color: var(--line); }
+.rs-teams { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; } /* three logos wrap in a narrow tile */
+.tv-name.tv-tba { color: var(--muted); }
+.odds-table.no-proj :is(.c-prk, .c-prk-cell) { display: none; } /* Proj. shows Sunday morning to Tuesday night only */
+
+/* ---------- College basketball page ---------- */
+/* AP poll rank before a team's name in the table, as on the score cards. */
+.tname .lg-rank { margin-right: 4px; font: 500 var(--text-xs) var(--body); color: var(--muted); }
+/* Bracket: First Four, then the four regions (each the college bracket's round columns), then the Final Four. */
+.ncaab-bracket { display: grid; gap: var(--s7); }
+.ncaab-region { display: grid; gap: var(--s3); }
+.ncaab-reg-title { padding: var(--s2) var(--s3); background: var(--bar-track); font-size: var(--text-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+.ncaab-ff { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.ncaab-bracket .bk-team, .ncaab-bracket .bk-team.picks { grid-template-columns: 26px 22px minmax(0, 1fr) auto 30px; }
+.ncaab-bracket div.bk-team { grid-template-columns: 26px 22px minmax(0, 1fr) auto; }
+.ncaab-bracket .bk-name small { margin-left: 4px; font: 500 var(--text-xs) var(--body); letter-spacing: 0; text-transform: none; }
+/* Narrow bracket cards show the abbreviation and no record; roomier ones the school name and record. */
+.ncaab-bracket .bk-ab { display: none; }
+@container (max-width: 250px) {
+  .ncaab-bracket .bk-nm, .ncaab-bracket .bk-name small { display: none; }
+  .ncaab-bracket .bk-ab { display: inline; }
+}
+.ncaab-bracket .bk-team, .ncaab-bracket .bk-team.picks { column-gap: 6px; }
+/* One region (or the Final Four) at a time, chosen from a row of buttons; the First Four sits at the bottom. */
+.ncaab-tabs { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ncaab-tabs .btn { flex: 1 1 auto; justify-content: center; }
+.ncaab-first4 { padding-top: var(--s5); border-top: 1px solid var(--line); }
+.ncaab-champs { font-size: var(--text-sm); color: var(--muted); }
+.ncaab-final { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.ncaab-rounds .bk-round { grid-template-rows: auto 1fr; align-content: start; }
+@media (min-width: 1000px) { .ncaab-f4rounds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .ncaab-rounds .bk-round { align-content: stretch; } }
+/* Phones and tablets: two games a row in the first three rounds (narrow cards show abbreviations). */
+@media (max-width: 999px) { .ncaab-rounds .bk-round:nth-child(-n+3) .bk-games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Bracket map: a small picture of the whole bracket with the part on screen highlighted. Its cells are buttons. */
+.ncaab-nav { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--s2) var(--s4); }
+.ncaab-where { grid-column: 1 / -1; font-size: var(--text-sm); color: var(--muted); }
+.ncaab-map { display: grid; grid-template-columns: 34px 30px 34px; grid-template-rows: 24px 24px; gap: 3px; }
+.ncaab-map button { display: grid; place-items: center; margin: 0; padding: 0; font: 700 11px/1 var(--display); letter-spacing: .04em; color: var(--muted); background: var(--bar-track); border: 1px solid var(--line); cursor: pointer; }
+.ncaab-map .nm-e { grid-area: 1 / 1; } .ncaab-map .nm-w { grid-area: 2 / 1; }
+.ncaab-map .nm-s { grid-area: 1 / 3; } .ncaab-map .nm-m { grid-area: 2 / 3; }
+.ncaab-map .nm-f { grid-area: 1 / 2 / 3 / 3; }
+.ncaab-map button:hover { color: var(--ink); border-color: var(--ink); }
+.ncaab-map button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+/* NHL bracket: four rounds (first round, second round, conference finals, Stanley Cup Final) across. */
+@media (min-width: 1000px) { .bk-rounds.nhl-rounds { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Scores: the day strip (NBA, NHL, NCAAB), under the Sort menu. A quiet row on a hairline: seven days spread
+   evenly (five on tablets, three on phones), each with its game count; the chosen day gets ink text and a thin
+   accent underline. Chevrons at the ends, a calendar button at the far right. */
+.sb-bar:has(.day-strip) { row-gap: var(--s2); }
+.sb-bar:has(.day-strip) .sb-sort { order: -1; }
+.day-strip { display: flex; align-items: stretch; flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--line); }
+.day-cells { display: flex; flex: 1 1 auto; min-width: 0; }
+.day-btn { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; justify-items: center; align-content: center; padding: 8px 4px 7px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--display); line-height: 1; }
+.day-btn .dw { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.day-btn .dd { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.day-btn .dc { font: 400 11px/1 var(--body); white-space: nowrap; opacity: .8; }
+.day-btn:hover:not(:disabled) { color: var(--ink); }
+.day-btn[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.day-btn[aria-pressed="true"] .dd { font-weight: 700; }
+.day-btn.today .dw { color: var(--accent); }
+.day-btn.empty:not([aria-pressed="true"]) { opacity: .55; }
+.day-btn:disabled { opacity: .2; cursor: default; }
+.day-arrow, .day-cal { flex: none; display: grid; place-items: center; width: 36px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.day-arrow { font-size: 24px; line-height: 1; }
+.day-arrow:hover:not(:disabled), .day-cal:hover { color: var(--ink); }
+.day-arrow:disabled { opacity: .3; cursor: default; }
+.day-jump { position: relative; flex: none; display: flex; }
+.day-cal { height: 100%; }
+/* The month calendar that opens from the calendar button. */
+.day-cal[aria-expanded="true"] { color: var(--ink); }
+.day-pop { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 248px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal-head b { font: 700 15px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.cal-nav { width: 30px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+.cal-nav:hover:not(:disabled) { color: var(--ink); background: var(--bg); }
+.cal-nav:disabled { opacity: .3; cursor: default; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow { padding: 4px 0; text-align: center; font: 600 10px/1 var(--display); letter-spacing: .08em; color: var(--muted); }
+.cal-day { height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: 500 13px/1 var(--body); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cal-day:hover:not(:disabled) { background: var(--bg); }
+.cal-day.empty { color: var(--muted); opacity: .6; }
+.cal-day.today { box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-day.on { background: var(--accent); color: var(--panel); opacity: 1; font-weight: 700; }
+.cal-day:disabled { opacity: .2; cursor: default; }
+@media (max-width: 899px) { .day-btn.far { display: none; } }
+@media (max-width: 519px) { .day-btn.mid { display: none; } .day-arrow, .day-cal { width: 30px; } }
+/* The week strip (NFL, NCAAF): the same strip with a date range in each cell, so slightly smaller type. */
+.week-strip .day-btn .dd { font-size: 15px; }
+.week-strip .day-btn:disabled { visibility: hidden; }
+@media (max-width: 519px) { .week-strip .day-btn .dd { font-size: 13px; } }
+/* The week list behind the calendar button on the NFL and NCAAF strips. */
+.wk-pop { width: 220px; padding: 6px; }
+.wk-list { display: grid; gap: 1px; max-height: 300px; overflow-y: auto; position: relative; }
+.wk-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+.wk-row b { font: 700 14px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.wk-row span { font: 400 12px/1 var(--body); color: var(--muted); white-space: nowrap; }
+.wk-row:hover { background: var(--bg); }
+.wk-row.today b { color: var(--accent); }
+.wk-row.on { background: var(--accent); }
+.wk-row.on b, .wk-row.on span { color: var(--panel); }
+
+/* History tab: every team's Elo line, the chosen team in colour, its record cards and the all-time lists. */
+.eh { display: grid; gap: var(--s4); min-width: 0; }
+.eh-controls { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s4); align-items: end; }
+.eh-controls select { max-width: 100%; }
+.eh-range { display: flex; flex-wrap: wrap; gap: 4px; }
+.eh-range button { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--muted); font: 600 12px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.eh-range button:hover { color: var(--ink); border-color: var(--muted); }
+.eh-range button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.eh-legend { display: flex; flex-wrap: wrap; gap: 6px var(--s4); font-size: var(--text-sm); }
+.eh-key { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.eh-key i { width: 16px; height: 3px; border-radius: 2px; }
+.eh-key-title { font-weight: 400; color: var(--muted); }
+.eh-key-title i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid currentColor; background: transparent; box-sizing: border-box; }
+.eh-plot { position: relative; min-width: 0; }
+.eh-plot canvas { display: block; }
+.eh-plot #eh-top { position: absolute; left: 0; top: 0; touch-action: pan-y; }
+.eh-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 130px; max-width: 240px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, .16); font-size: 12px; line-height: 1.35; }
+.eh-tip b { font: 700 14px/1.2 var(--display); letter-spacing: .03em; }
+.eh-tip-e { font: 700 18px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.eh-tip span { color: var(--muted); font-weight: 400; font-size: 12px; }
+.eh-tip-g { margin-top: 2px; }
+.eh-hint, .eh-method { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 75ch; }
+.eh-side { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.eh-card { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
+.eh-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s3); }
+.eh-card h3 i { width: 16px; height: 4px; border-radius: 2px; flex: none; }
+.eh-card h4 { margin: var(--s4) 0 var(--s2); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); margin: 0; }
+.eh-tiles dt { font-size: var(--text-xs); color: var(--muted); }
+.eh-tiles dd { margin: 2px 0 0; font: 700 var(--text-lg)/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-tiles dd small { display: block; margin-top: 3px; font: 400 var(--text-xs)/1.3 var(--body); color: var(--muted); }
+.eh-best { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.eh-best li { display: flex; gap: var(--s3); align-items: baseline; font-size: var(--text-sm); }
+.eh-best b { min-width: 3em; }
+.eh-best em { font: 600 10px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; font-style: normal; color: var(--up); }
+.eh-lists { display: grid; gap: var(--s5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.eh-lists h3 { margin: 0 0 var(--s2); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+.eh-lists ol { margin: 0; padding: 0; list-style: none; display: grid; }
+.eh-lists li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr) auto; gap: var(--s2); align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.eh-lists .eh-n { color: var(--muted); }
+.eh-lists button { padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh-lists button:hover { color: var(--accent); text-decoration: underline; }
+@media (min-width: 700px) { .eh-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A page with four tabs drops the league name beside its logo on phones, so the tabs fit. */
+@media (max-width: 479px) { .header-bar:has(.tabs a:nth-child(4)) .sport-now span { display: none; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 6px; } }
+@media (max-width: 400px) { .header-bar:has(.tabs a:nth-child(4)) .tabs { gap: 0; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 4px; font-size: 12px; letter-spacing: 0; } }
+/* History: the legend's band key, and the small chart for every current team. */
+.eh-key-band { font-weight: 400; color: var(--muted); }
+.eh-key-band i { width: 16px; height: 10px; border-radius: 2px; background: var(--muted); opacity: .25; }
+.eh-all h3 { margin: 0 0 var(--s3); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+.eh-grid { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.eh-mini { display: grid; gap: 2px; min-width: 0; padding: 7px 8px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); text-align: left; cursor: pointer; }
+.eh-mini:hover { border-color: var(--muted); }
+.eh-mini[aria-pressed="true"] { border-color: var(--ink); }
+.eh-mini span { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; min-width: 0; }
+.eh-mini b { font: 600 13px/1.1 var(--display); letter-spacing: .03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh-mini i { font: 400 11px/1 var(--body); font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.eh-mini canvas { display: block; max-width: 100%; }
+/* History: the written summary under the chart. */
+.eh-story { max-width: 70ch; }
+.eh-story h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s3); }
+.eh-story h3 i { width: 16px; height: 4px; border-radius: 2px; flex: none; }
+.eh-story p { margin: 0 0 var(--s3); line-height: 1.6; }
+.eh-story p:last-child { margin-bottom: 0; }
+/* History: the three facts under the chart (highest, lowest, national championships by selector). */
+.eh-facts h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s3); }
+.eh-facts h3 i { width: 16px; height: 4px; border-radius: 2px; flex: none; }
+.eh-facts-grid { display: grid; gap: var(--s5); align-items: start; }
+.eh-facts-grid dl { display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); margin: 0; }
+.eh-fact dt, .eh-crowns h4 { margin: 0; font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-fact dd { margin: 4px 0 0; font: 700 28px/1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-fact dd small { display: block; margin-top: 5px; font: 400 var(--text-sm)/1.35 var(--body); color: var(--muted); }
+.eh-count, .eh-none { margin: 6px 0 var(--s2); font-size: var(--text-sm); color: var(--muted); }
+.eh-titles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 var(--s5); margin: 0; padding: 0; list-style: none; }
+.eh-titles li { display: flex; gap: var(--s3); align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); color: var(--muted); }
+.eh-titles li b { min-width: 2.6em; font-variant-numeric: tabular-nums; }
+.eh-titles li.eh-major, .eh-titles li.eh-major b { color: var(--ink); }
+.eh-titles abbr { text-decoration: none; font-weight: 600; cursor: help; }
+.eh-more { color: var(--muted); }
+span.eh-more[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
+@media (min-width: 800px) { .eh-facts-grid { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s6); } .eh-facts-grid dl { flex-direction: column; } }
+/* History, tidied: three stat tiles under the chart, then one panel of championship seasons. */
+.eh-facts { display: grid; gap: var(--s4); }
+.eh-tiles3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--s3); margin: 0; }
+.eh-tile { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
+.eh-tile dt { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-tile dd { margin: 8px 0 6px; font: 700 34px/1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-tile p { margin: 0; font-size: var(--text-sm); line-height: 1.4; color: var(--muted); }
+.eh-crowns { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.eh-crowns h3 { margin: 0 0 var(--s2); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-crowns .eh-titles li:last-child { border-bottom: 0; }
+.eh-method { padding-top: var(--s2); }
+/* History: the championship panel's filter and sort. */
+.eh-crowns-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; margin-bottom: var(--s2); }
+.eh-crowns-head h3 { margin: 0; }
+.eh-crowns-ctl { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); }
+.eh-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.eh-seg button { padding: 5px 9px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.eh-seg button:last-child { border-right: 0; }
+.eh-seg button:hover { color: var(--ink); }
+.eh-seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+/* History: the FCS dashed-line legend under the chart. */
+.eh-cl-wrap { margin: calc(var(--s2) * -1) 0 0; font-size: var(--text-sm); color: var(--muted); }
+.eh-cl { display: inline-flex; align-items: center; gap: 8px; }
+.eh-cl-dash { width: 22px; height: 0; border-top: 2px dashed var(--c); }
+/* History: the record-book year-by-year game log. */
+.eh-log { margin: 0; background: var(--panel); border: 1px solid var(--line); }
+.eh-log > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s4); padding: var(--s4); cursor: pointer; list-style: none; }
+.eh-log > summary::-webkit-details-marker { display: none; }
+.eh-log > summary::before { content: "\25B8"; margin-right: 6px; color: var(--muted); font-size: .9em; display: inline-block; transition: transform .15s; }
+.eh-log[open] > summary::before { transform: rotate(90deg); }
+.eh-log-t { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; }
+.eh-log-n { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.eh-log-body { padding: 0 var(--s4) var(--s4); display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: var(--s3) var(--s5); align-items: start; }
+.eh-log-load { padding: 0 var(--s4) var(--s4); color: var(--muted); font-size: var(--text-sm); }
+.eh-era { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--s4); margin-top: var(--s2); padding: 5px 10px; background: var(--ink); color: var(--panel); }
+.eh-era:first-child { margin-top: 0; }
+.eh-era b { font: 600 var(--text-sm)/1.25 var(--display); }
+.eh-era span { font-size: var(--text-xs); opacity: .82; font-variant-numeric: tabular-nums; }
+.eh-yr-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding-bottom: 3px; border-bottom: 1.5px solid var(--line); }
+.eh-yr-h b { font: 700 var(--text-md)/1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-yr-h span { font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.eh-g { list-style: none; margin: 5px 0 0; padding: 0; }
+.eh-g li { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 7px; align-items: start; padding: 2px 0; font-size: 12px; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
+.eh-g-d { color: var(--muted); white-space: nowrap; }
+.eh-g-o { min-width: 0; }
+.eh-g-o i { font-style: normal; color: var(--muted); }
+.eh-g-s { justify-self: end; white-space: nowrap; }
+.eh-g-w .eh-g-s { font-weight: 700; }
+.eh-g li.eh-g-l { color: var(--muted); }
+.eh-bowl { display: block; margin-top: 1px; font: 600 11px/1.3 var(--display); letter-spacing: .02em; color: var(--muted); }

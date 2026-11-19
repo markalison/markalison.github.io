@@ -566,6 +566,8 @@
   // Sort by Playoff impact (Start time is the default): picked games first, then the swing in playoff
   // odds between a win and a loss, added up for both teams when it's their next game. Other games (finals, or
   // later in a week) go by how much is at stake instead: p(1 - p) of each team's playoff odds.
+  // A game still to be decided counts by how likely its swing is: the gap times 4p(1 - p) of the win chance on
+  // its card, which is 1 for a toss-up and falls towards 0 as one result becomes near certain. A final keeps its swing.
   function impact(g) {
     if (st.picks[g.id] != null) return 10;
     var swing = 0, stake = 0;
@@ -574,65 +576,42 @@
       stake += r.playoff * (1 - r.playoff);
       if (r.next === g.id && r.ifWin != null && r.ifLoss != null) swing += Math.abs(r.ifWin - r.ifLoss);
     });
-    return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
+    var p = R.homeWin[g.id];
+    if (p == null) p = winChance(g.h, g.a, g.neutral);
+    return swing ? 1 + swing * (g.s === 'post' ? 1 : 4 * p * (1 - p)) : stake; // a measured swing always ranks ahead of the stake estimate
   }
-  var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
   // A game only counts as live within 6 hours of kickoff; a stale 'in' (caught mid-start by a build) reads as final.
   function liveNow(g) { return g.s === 'in' && Date.now() - Date.parse(g.d) < 6 * 3600000; }
   function sbStat(g) { return g.s === 'in' && !liveNow(g) ? 'post' : g.s; }
   var impactFrozen = null;
-  // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
-  function frozenImpact(games, key, byTime) {
+  // The Playoff impact order: worked out the first time, then kept (games going live or final and new odds
+  // don't move it) until the sort or week changes.
+  function frozenOrder(games, key, byTime) {
     if (!impactFrozen || impactFrozen.key !== key) {
       impactFrozen = { key: key, pos: {} };
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return LIVE_RANK[sbStat(a)] - LIVE_RANK[sbStat(b)] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
-  } // the Playoff impact order, kept until the sort or week changes
-  // The Scores picker: a strip of game days (seven around the chosen one, arrows to step a day) and a calendar
-  // button that lists the weeks. It stands in for the Week dropdown, which stays in the page but hidden.
-  function sbDayKey(g) { return g._day || (g._day = new Date(g.d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })); }
-  // Every day with games (those passing keep), in order, each with its week and its games.
-  function gameDays(keep) {
-    var m = {};
-    D.games.forEach(function (g) { if (g.wk == null || (keep && !keep(g))) return; var k = sbDayKey(g); (m[k] = m[k] || { day: k, wk: g.wk, games: [] }).games.push(g); });
-    return Object.keys(m).sort().map(function (k) { return m[k]; });
+    return function (a, b) { return (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); };
   }
-  // The day a week opens on: its first day; for the current week, the latest day under way, moving on to the
-  // next once that day's games are all over.
-  function defaultDay(days, wk, isCurrent) {
-    var dl = days.filter(function (d) { return d.wk === wk; });
-    if (!dl.length) return null;
-    if (!isCurrent) return dl[0].day;
-    var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), now = Date.now(), k = 0;
-    dl.forEach(function (d, n) { if (d.day <= today) k = n; });
-    var over = dl[k].games.every(function (g) { return g.s === 'post' || Date.parse(g.d) < now - 5 * 3600000; });
-    return (over && dl[k + 1] ? dl[k + 1] : dl[k]).day;
-  }
-  function renderDayStrip(el, days, selDay, weeks, selWk, curWk, calOpen) {
-    var at = Math.max(0, days.map(function (d) { return d.day; }).indexOf(selDay)), cells = '';
-    var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    var fmt = function (day, o) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, o)); };
+  // The Scores picker: a strip of weeks (seven around the chosen one, arrows to step a week), each with its
+  // dates and number of games. It stands in for the Week dropdown, which stays in the page but hidden.
+  function renderWeekStrip(el, weeks, selWk, curWk, count) {
+    var at = Math.max(0, weeks.map(function (w) { return w.wk; }).indexOf(selWk)), cells = '';
     var md = function (d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }); };
     var range = function (w) { var a = md(w.first), b = md(w.last); if (a === b) return a; if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1]; return a + '\u2013' + b; };
     var arrow = function (dir) {
-      var d = days[at + dir];
-      return '<button type="button" class="day-arrow"' + (d ? ' data-gday="' + d.day + '"' : ' disabled') + ' aria-label="' + (dir < 0 ? 'Previous game day' : 'Next game day') + '">' + (dir < 0 ? '\u2039' : '\u203a') + '</button>';
+      var w = weeks[at + dir];
+      return '<button type="button" class="day-arrow"' + (w ? ' data-week="' + w.wk + '"' : ' disabled') + ' aria-label="' + (dir < 0 ? 'Previous week' : 'Next week') + '">' + (dir < 0 ? '\u2039' : '\u203a') + '</button>';
     };
     for (var k = -3; k <= 3; k++) {
-      var d = days[at + k], cls = Math.abs(k) === 3 ? ' far' : Math.abs(k) === 2 ? ' mid' : '';
-      if (!d) { cells += '<button type="button" class="day-btn' + cls + '" disabled aria-hidden="true" tabindex="-1"></button>'; continue; }
-      var n = d.games.length;
-      cells += '<button type="button" class="day-btn' + cls + (d.day === today ? ' today' : '') + '" data-gday="' + d.day + '" aria-pressed="' + (k === 0) + '" aria-label="' + esc(fmt(d.day, { weekday: 'long', month: 'long', day: 'numeric' }) + ', week ' + d.wk + (d.day === today ? ' (today)' : '')) + '">' +
-        '<span class="dw">' + fmt(d.day, { weekday: 'short' }) + '</span><span class="dd">' + fmt(d.day, { month: 'short', day: 'numeric' }) + '</span><span class="dc">' + n + (n === 1 ? ' game' : ' games') + '</span></button>';
+      var w = weeks[at + k], cls = Math.abs(k) === 3 ? ' far' : Math.abs(k) === 2 ? ' mid' : '';
+      if (!w) { cells += '<button type="button" class="day-btn' + cls + '" disabled aria-hidden="true" tabindex="-1"></button>'; continue; }
+      var n = count(w.wk);
+      cells += '<button type="button" class="day-btn' + cls + (w.wk === curWk ? ' today' : '') + '" data-week="' + w.wk + '" aria-pressed="' + (k === 0) + '" aria-label="' + esc('Week ' + w.wk + ', ' + range(w) + (w.wk === curWk ? ' (current)' : '')) + '">' +
+        '<span class="dw">Week ' + w.wk + '</span><span class="dd">' + esc(range(w)) + '</span><span class="dc">' + n + (n === 1 ? ' game' : ' games') + '</span></button>';
     }
-    var pop = calOpen ? '<div class="day-pop wk-pop" id="day-pop" role="dialog" aria-label="Pick a week"><div class="wk-list">' + weeks.map(function (w) {
-      return '<button type="button" class="wk-row' + (w.wk === selWk ? ' on' : '') + (w.wk === curWk ? ' today' : '') + '" data-week="' + w.wk + '"><b>Week ' + w.wk + '</b><span>' + esc(range(w)) + '</span></button>';
-    }).join('') + '</div></div>' : '';
-    el.innerHTML = arrow(-1) + '<div class="day-cells">' + cells + '</div>' + arrow(1) +
-      '<span class="day-jump"><button type="button" class="day-cal" data-cal="1" aria-expanded="' + !!calOpen + '" aria-label="Pick a week" title="Pick a week"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg></button>' + pop + '</span>';
-    var on = el.querySelector('.wk-row.on'); if (on) on.parentNode.scrollTop = on.offsetTop - 90;
+    el.innerHTML = arrow(-1) + '<div class="day-cells">' + cells + '</div>' + arrow(1);
   }
   function weekStripEl(before, hide) {
     var el = $('day-strip');
@@ -645,14 +624,17 @@
   function renderScores() {
     var cur = currentWeek(), sel = st.week || cur;
     var weekCtl = $('nfl-week').closest('.ctl');
-    var allDays = gameDays(), selDay = st.day && allDays.some(function (d) { return d.day === st.day && d.wk === sel; }) ? st.day : defaultDay(allDays, sel, sel === cur);
-    renderDayStrip(weekStripEl(weekCtl, weekCtl), allDays, selDay, weekList, sel, cur, st.cal);
+    // The week strip sits on top, with the Sort row under it and the week's games below.
+    renderWeekStrip(weekStripEl(weekCtl.closest('.sb-bar'), weekCtl), weekList, sel, cur, function (wk) { return D.games.filter(function (g) { return g.wk === wk; }).length; });
     $('nfl-week').innerHTML = weekList.map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === cur ? ' (current)' : '') + '</option>';
     }).join('');
-    var games = D.games.filter(function (g) { return g.wk === sel && sbDayKey(g) === selDay; });
+    var games = D.games.filter(function (g) { return g.wk === sel; });
     var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
-    var order = st.sbSort !== 'impact' ? byTime : function (a, b) { return impact(b) - impact(a) || byTime(a, b); };
+    var timeSort = st.sbSort !== 'impact'; // Start time is the default
+    [].forEach.call(document.querySelectorAll('#nfl-sb-sort button'), function (b) { b.setAttribute('aria-pressed', (b.dataset.sbsort === 'impact') !== timeSort); });
+    // Under either sort: live games first, then the games still to come and the finals, each under its day.
+    var order = timeSort ? byTime : frozenOrder(games, sel, byTime);
     var group = function (list, title) { return list.length ? '<div class="live-group">' + (title ? '<h4>' + title + '</h4>' : '') + '<div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
     // Upcoming and final games under a heading per day (Eastern), in the chosen order within each day.
     var byDay = function (list, tag) {
@@ -663,12 +645,8 @@
       }).join('');
     };
     var live = games.filter(function (g) { return sbStat(g) === 'in'; });
-    if (st.sbSort === 'impact') {
-      $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, selDay, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this day.</p>';
-      return;
-    }
     var html = group(live, live.length ? 'In progress' : '') + byDay(games.filter(function (g) { return sbStat(g) === 'pre'; }), '') + byDay(games.filter(function (g) { return sbStat(g) === 'post'; }), 'Final');
-    $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this day.</p>';
+    $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this week.</p>';
   }
   // Live scores for the chosen week straight from ESPN; odds stay as of the last build.
   var liveTimer = null, page = 'rankings';
@@ -792,9 +770,8 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.cal) { st.cal = !st.cal; renderScores(); return; }
-    if (b.dataset.gday) { var gd = gameDays().filter(function (d) { return d.day === b.dataset.gday; })[0]; if (!gd) return; st.cal = false; st.day = gd.day; st.week = gd.wk === currentWeek() ? null : gd.wk; impactFrozen = null; renderScores(); refreshScores(); return; }
-    if (b.dataset.week) { st.cal = false; st.day = null; st.week = +b.dataset.week === currentWeek() ? null : +b.dataset.week; impactFrozen = null; renderScores(); refreshScores(); return; }
+    if (b.dataset.sbsort) { st.sbSort = b.dataset.sbsort; impactFrozen = null; renderScores(); return; }
+    if (b.dataset.week) { st.week = +b.dataset.week === currentWeek() ? null : +b.dataset.week; impactFrozen = null; renderScores(); refreshScores(); return; }
     if (b.dataset.open != null) { st.open[b.dataset.open] = !st.open[b.dataset.open]; renderRankings(); return; }
     if (b.dataset.pick) {
       // Each press cycles this team through W, L, T (tie) and blank; its opponent gets the opposite result.
@@ -828,9 +805,6 @@
     renderRankings();
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nfl-view', st.view); renderRankings(); });
-  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; impactFrozen = null; renderScores(); });
-  document.addEventListener('click', function (e) { if (st.cal && !e.target.closest('.day-jump')) { st.cal = false; renderScores(); } });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.cal) { st.cal = false; renderScores(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   $('nfl-week').addEventListener('change', function (e) { st.week = +e.target.value === currentWeek() ? null : +e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
   // Dark and light logos differ, so redraw when the theme changes.

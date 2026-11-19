@@ -52,7 +52,7 @@
   <div class="stack" id="page-scoreboard" hidden>
     <div class="filters sb-bar">
       <div class="ctl"><label for="nfl-week">Day</label><select id="nfl-week"></select></div>
-      <div class="ctl sb-sort"><label for="nfl-sb-sort">Sort by</label><select id="nfl-sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
+      <div class="ctl sb-sort"><span id="nfl-sb-sort-label">Sort by</span><div class="seg" id="nfl-sb-sort" role="group" aria-labelledby="nfl-sb-sort-label"><button type="button" data-sbsort="time" aria-pressed="true">Start time</button><button type="button" data-sbsort="impact" aria-pressed="false">Playoff impact</button></div></div>
     </div>
     <p class="live-note" id="nfl-live-note" hidden></p>
     <section class="live-board" id="nfl-scores" aria-label="Scores"></section>

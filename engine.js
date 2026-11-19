@@ -46,7 +46,8 @@ var CFP = (function () {
   function parseEspn(raw) {
     var teams = [], byId = {};
     function addTeam(t, conf, div) {
-      if (byId[t.id] != null) return byId[t.id];
+      // The standings feed has no team colors; the scoreboard's teams do, so a later sighting fills one in.
+      if (byId[t.id] != null) { var k = teams[byId[t.id]]; if (!k.color && t.color) k.color = t.color; return byId[t.id]; }
       byId[t.id] = teams.length;
       teams.push({
         id: String(t.id), ab: t.abbreviation || '', name: t.location || t.displayName || t.shortDisplayName || t.name,

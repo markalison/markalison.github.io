@@ -22,10 +22,10 @@
       <div class="ctl"><label for="sb-week">Week</label><select id="sb-week"></select></div>
     </div>
     <div id="live-head"></div>
-    <!-- Between the week heading and the games: conference on the left, sort order on the right. -->
+    <!-- Under the week strip, above the games: the sort toggle on the left, conference on the right. -->
     <div class="filters sb-bar">
-      <div class="ctl"><label for="sb-conf">Conference</label><select id="sb-conf"></select></div>
-      <div class="ctl sb-sort"><label for="sb-sort">Sort by</label><select id="sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
+      <div class="ctl sb-sort"><span id="sb-sort-label">Sort by</span><div class="seg" id="sb-sort" role="group" aria-labelledby="sb-sort-label"><button type="button" data-sbsort="time" aria-pressed="true">Start time</button><button type="button" data-sbsort="impact" aria-pressed="false">Playoff impact</button></div></div>
+      <div class="ctl"><span>Conference</span><div class="pick" id="sb-conf"></div></div>
     </div>
     <section class="live-board" id="live-board" aria-label="Scores"></section>
   </div>
@@ -51,11 +51,20 @@
     </section>
   </div>
 
+  <!-- One team's page. js/app.js fills it in for the team named in the address, #team/<name>. -->
+  <div class="stack" id="page-team" hidden>
+    <div class="filters tp-top">
+      <a class="tp-back" href="#rankings">All teams</a>
+      <div class="ctl"><label for="mode-team">Ratings used</label><select id="mode-team" class="mode-select"></select></div>
+    </div>
+    <div class="tp" id="team-page"></div>
+  </div>
+
   <div class="stack" id="page-rankings">
     <section class="section board" aria-labelledby="board-title">
       <div class="section-head"><h2 id="board-title">All teams</h2><p id="board-count"></p></div>
       <div class="filters">
-        <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
+        <div class="ctl"><span>Conference</span><div class="pick" id="conf"></div></div>
         <div class="ctl"><label for="mode">Ratings used</label><select id="mode" class="mode-select"></select></div>
         <div class="picks-bar" id="picks-bar" aria-live="polite"></div>
       </div>

@@ -529,6 +529,8 @@
   // Sort by Playoff impact (Start time is the default): picked games first, then the swing in playoff
   // odds between a win and a loss, added up for both teams when it's their next game. Other games (finals, or
   // later in a week) go by how much is at stake instead: p(1 - p) of each team's playoff odds.
+  // A game still to be decided counts by how likely its swing is: the gap times 4p(1 - p) of the win chance on
+  // its card, which is 1 for a toss-up and falls towards 0 as one result becomes near certain. A final keeps its swing.
   function impact(g) {
     if (st.picks[g.id] != null) return 10;
     var swing = 0, stake = 0;
@@ -537,22 +539,24 @@
       stake += r.playoff * (1 - r.playoff);
       if (r.next === g.id && r.ifWin != null && r.ifLoss != null) swing += Math.abs(r.ifWin - r.ifLoss);
     });
-    return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
+    var p = R.homeWin[g.id];
+    if (p == null) p = winChance(g.h, g.a, g.neutral);
+    return swing ? 1 + swing * (g.s === 'post' ? 1 : 4 * p * (1 - p)) : stake; // a measured swing always ranks ahead of the stake estimate
   }
-  var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
   // A game only counts as live within 6 hours of kickoff; a stale 'in' (caught mid-start by a build) reads as final.
   function liveNow(g) { return g.s === 'in' && Date.now() - Date.parse(g.d) < 6 * 3600000; }
   function sbStat(g) { return g.s === 'in' && !liveNow(g) ? 'post' : g.s; }
   var impactFrozen = null;
-  // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
-  function frozenImpact(games, key, byTime) {
+  // The Playoff impact order: worked out the first time, then kept (games going live or final and new odds
+  // don't move it) until the sort or day changes.
+  function frozenOrder(games, key, byTime) {
     if (!impactFrozen || impactFrozen.key !== key) {
       impactFrozen = { key: key, pos: {} };
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return LIVE_RANK[sbStat(a)] - LIVE_RANK[sbStat(b)] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
-  } // the Playoff impact order, kept until the sort or day changes
+    return function (a, b) { return (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); };
+  }
   // The day picker: a strip of seven calendar days around the chosen one, arrows to step a day, and a
   // calendar for longer jumps. It stands in for the Day dropdown, which stays in the page but hidden.
   // The month calendar behind the calendar button. st.cal is the month showing ('YYYY-MM'), or null when closed.
@@ -580,7 +584,9 @@
     if (!el) {
       var ctl = $('nfl-week').closest('.ctl');
       el = document.createElement('div'); el.id = 'day-strip'; el.className = 'day-strip'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Day');
-      ctl.hidden = true; ctl.parentNode.insertBefore(el, ctl);
+      // On top, with the Sort row under it and the day's games below.
+      var bar = ctl.closest('.sb-bar');
+      ctl.hidden = true; bar.parentNode.insertBefore(el, bar);
     }
     var first = dayList[0].day, last = dayList[dayList.length - 1].day, today = etDay(new Date().toISOString());
     var fmt = function (day, o) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, o)); };
@@ -608,12 +614,11 @@
     }).join('');
     var games = D.games.filter(function (g) { return g.day === sel; });
     var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
-    var order = st.sbSort !== 'impact' ? byTime : function (a, b) { return impact(b) - impact(a) || byTime(a, b); };
+    var timeSort = st.sbSort !== 'impact'; // Start time is the default
+    [].forEach.call(document.querySelectorAll('#nfl-sb-sort button'), function (b) { b.setAttribute('aria-pressed', (b.dataset.sbsort === 'impact') !== timeSort); });
+    // Under either sort: live games first, then the games still to come, then the finals.
+    var order = timeSort ? byTime : frozenOrder(games, sel, byTime);
     var group = function (list) { return list.length ? '<div class="live-group"><div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
-    if (st.sbSort === 'impact') {
-      $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, sel, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this day.</p>';
-      return;
-    }
     var html = group(games.filter(function (g) { return sbStat(g) === 'in'; })) + group(games.filter(function (g) { return sbStat(g) === 'pre'; })) + group(games.filter(function (g) { return sbStat(g) === 'post'; }));
     $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this day.</p>';
   }
@@ -739,6 +744,7 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.sbsort) { st.sbSort = b.dataset.sbsort; impactFrozen = null; renderScores(); return; }
     if (b.dataset.cal) { st.cal = st.cal ? null : (st.day || currentDay()).slice(0, 7); redrawDayStrip(); return; }
     if (b.dataset.calmonth) { st.cal = b.dataset.calmonth; redrawDayStrip(); return; }
     if (b.dataset.day) { pickDay(b.dataset.day); return; }
@@ -775,7 +781,6 @@
     renderRankings();
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nba-view', st.view); renderRankings(); });
-  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; impactFrozen = null; renderScores(); });
   document.addEventListener('click', function (e) { if (st.cal && !e.target.closest('.day-jump')) { st.cal = null; redrawDayStrip(); } });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.cal) { st.cal = null; redrawDayStrip(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   $('nfl-week').addEventListener('change', function (e) { st.day = e.target.value === currentDay() ? null : e.target.value; renderScores(); refreshScores(); });

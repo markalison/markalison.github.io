@@ -6,9 +6,10 @@
 /* ---------- 1. Design tokens ---------- */
 :root {
   color-scheme: light;
-  /* Color: one blue accent, neutral surfaces, and red/green kept for results and live games */
+  /* Color: the brand is ink and green. Green is the site's one accent and its color for chances (bars, lines,
+     shaded cells); neutral surfaces; red kept for losses and live games. */
   --bg: #f4f5f8; --panel: #ffffff; --ink: #171a21; --muted: #5a6172; --line: #dde0e7;
-  --accent: #1f4fd1; --accent-soft: #e3e9fb; --bar: #2f62e3; --heat: #3f8f63; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c; --warn: #b45309;
+  --accent: #0b7a4b; --accent-soft: #e0f2e8; --bar: #1f9a63; --heat: #3f8f63; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c; --warn: #b45309;
   --shadow: 0 1px 2px rgb(16 24 40 / .06), 0 1px 3px rgb(16 24 40 / .05);
   /* Type: two families and a fixed scale */
   --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
@@ -24,12 +25,12 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
-  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --heat: #5fbf8a; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; --warn: #fbbf24;
+  --accent: #4fd39a; --accent-soft: #19322a; --bar: #45c48b; --heat: #5fbf8a; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; --warn: #fbbf24;
   --shadow: none; color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
-  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --heat: #5fbf8a; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; --warn: #fbbf24;
+  --accent: #4fd39a; --accent-soft: #19322a; --bar: #45c48b; --heat: #5fbf8a; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; --warn: #fbbf24;
   --shadow: none; color-scheme: dark;
 }
 
@@ -64,13 +65,19 @@ a { color: var(--accent); text-underline-offset: 3px; }
 
 /* ---------- 4. Header and navigation ---------- */
 .site-header { background: var(--panel); border-bottom: 1px solid var(--line); }
-/* Tabs on the left, theme switch on the right, on every screen size. Small phones get tighter tabs so all three fit. */
+/* One row: the menu (every sport, then the night mode switch), the sport you're in, its tabs, and the brand at the
+   right (the mark alone on narrower screens). Small phones get tighter tabs so they all fit. */
 @media (max-width: 400px) { .header-bar .tabs a { padding: 0 var(--s1); font-size: var(--text-sm); letter-spacing: .03em; } }
 .header-bar { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--s2); }
-/* Header: the menu button, the sport you're in, that sport's tabs, and the sun/moon theme button. */
 .sport-now { display: inline-flex; align-items: center; gap: 6px; padding-right: var(--s3); border-right: 1px solid var(--line); font: 700 var(--text-sm)/1 var(--display); letter-spacing: .06em; color: var(--ink); white-space: nowrap; }
 .sport-now img { display: block; height: 24px; width: auto; }
 @media (max-width: 599px) { .sport-now { padding-right: var(--s2); gap: 4px; } }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+.brand-mark { display: block; width: 28px; height: 28px; flex: none; }
+.brand-name { display: none; font: 700 1.2rem/1 var(--display); letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.brand-name span { font-weight: 500; color: var(--muted); }
+@media (min-width: 900px) { .header-bar .brand .brand-name { display: inline; } }
+.footer-logo .brand-name { display: inline; font-size: 1.15rem; }
 /* Menu at the top left: every page, then the night-mode switch last. */
 .menu { position: relative; margin-left: calc(-1 * var(--s2)); }
 /* The menu button: three lines and the sport being shown. */
@@ -334,14 +341,10 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .sched { display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s4); }
 .sched span:nth-child(even) { font-weight: 600; text-align: right; }
 .sched .logo { width: 18px; height: 18px; margin-inline-end: 5px; }
-/* A team's played games as a compact horizontal form strip (opponent + W/L), not a vertical list. */
-.form { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: center; }
-.form-g { display: inline-flex; align-items: center; gap: 3px; }
-.form-g .logo { width: 20px; height: 20px; }
+/* A result's W or L, in the win and loss colors (the college team pages' schedule). */
 .res { font: 700 var(--text-sm)/1 var(--display); }
 .res-w { color: var(--up); }
 .res-l { color: var(--down); }
-.sched-rec { font: 700 var(--text-sm) var(--display); font-variant-numeric: tabular-nums; }
 .live { font: 700 var(--text-xs) var(--display); letter-spacing: .06em; color: var(--down); }
 .hist { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--muted); }
 .hist div { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
@@ -369,9 +372,16 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .live-note { font-size: var(--text-sm); color: var(--muted); }
 .live-note b { color: var(--ink); font-weight: 600; }
 #live-head:empty { display: none; }
-/* Conference on the left, Sort by pushed to the right, between the week heading and the games. */
+/* Between the day or week strip and the games: the Sort by toggle on the left and, on college football,
+   Conference on the right. */
 .sb-bar { justify-content: space-between; }
-.sb-bar .sb-sort { margin-left: auto; }
+/* A two-way toggle, the height of a dropdown: the pressed side is filled. */
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.seg button { min-height: 38px; padding: 0 var(--s3); border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 var(--text-sm) var(--body); white-space: nowrap; cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.seg button:focus-visible { outline-offset: -2px; }
 .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: var(--s3); }
 .live-empty { padding: var(--s5); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); }
 .lg { display: grid; gap: var(--s2); align-content: start; padding: var(--s3) var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -795,11 +805,9 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 /* NHL bracket: four rounds (first round, second round, conference finals, Stanley Cup Final) across. */
 @media (min-width: 1000px) { .bk-rounds.nhl-rounds { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-/* Scores: the day strip (NBA, NHL, NCAAB), under the Sort menu. A quiet row on a hairline: seven days spread
+/* Scores: the day strip (NBA, NHL, NCAAB), above the Sort toggle. A quiet row on a hairline: seven days spread
    evenly (five on tablets, three on phones), each with its game count; the chosen day gets ink text and a thin
    accent underline. Chevrons at the ends, a calendar button at the far right. */
-.sb-bar:has(.day-strip) { row-gap: var(--s2); }
-.sb-bar:has(.day-strip) .sb-sort { order: -1; }
 .day-strip { display: flex; align-items: stretch; flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--line); }
 .day-cells { display: flex; flex: 1 1 auto; min-width: 0; }
 .day-btn { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; justify-items: center; align-content: center; padding: 8px 4px 7px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--display); line-height: 1; }
@@ -852,7 +860,7 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .wk-row.on b, .wk-row.on span { color: var(--panel); }
 
 /* History tab: every team's Elo line, the chosen team in colour, its record cards and the all-time lists. */
-.eh { display: grid; gap: var(--s4); min-width: 0; }
+.eh { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); min-width: 0; } /* one column, never wider than the page */
 .eh-controls { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s4); align-items: end; }
 .eh-controls select { max-width: 100%; }
 .eh-range { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -895,7 +903,7 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .eh-lists button:hover { color: var(--accent); text-decoration: underline; }
 @media (min-width: 700px) { .eh-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* A page with four tabs drops the league name beside its logo on phones, so the tabs fit. */
-@media (max-width: 479px) { .header-bar:has(.tabs a:nth-child(4)) .sport-now span { display: none; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 6px; } }
+@media (max-width: 479px) { .header-bar:has(.tabs a:nth-child(4)) .sport-now > span:last-child { display: none; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 6px; } }
 @media (max-width: 400px) { .header-bar:has(.tabs a:nth-child(4)) .tabs { gap: 0; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 4px; font-size: 12px; letter-spacing: 0; } }
 /* History: the legend's band key, and the small chart for every current team. */
 .eh-key-band { font-weight: 400; color: var(--muted); }
@@ -933,7 +941,7 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 span.eh-more[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
 @media (min-width: 800px) { .eh-facts-grid { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s6); } .eh-facts-grid dl { flex-direction: column; } }
 /* History, tidied: three stat tiles under the chart, then one panel of championship seasons. */
-.eh-facts { display: grid; gap: var(--s4); }
+.eh-facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
 .eh-tiles3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--s3); margin: 0; }
 .eh-tile { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
 .eh-tile dt { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -947,6 +955,8 @@ span.eh-more[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
 .eh-crowns-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; margin-bottom: var(--s2); }
 .eh-crowns-head h3 { margin: 0; }
 .eh-crowns-ctl { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); }
+.eh-crowns-ctl, .eh-crowns-ctl .ctl { min-width: 0; max-width: 100%; }
+.eh-crowns select { max-width: 100%; }
 .eh-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
 .eh-seg button { padding: 5px 9px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
 .eh-seg button:last-child { border-right: 0; }
@@ -982,3 +992,211 @@ span.eh-more[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
 .eh-g-w .eh-g-s { font-weight: 700; }
 .eh-g li.eh-g-l { color: var(--muted); }
 .eh-bowl { display: block; margin-top: 1px; font: 600 11px/1.3 var(--display); letter-spacing: .02em; color: var(--muted); }
+/* The Coach menu has a button on either side, to step one coach earlier or later. */
+.eh-controls .ctl { max-width: 100%; }
+.eh-step { display: flex; gap: 4px; min-width: 0; }
+.eh-step select { flex: 1 1 auto; min-width: 0; }
+.eh-step-b { flex: none; width: 40px; padding: 0; font: 400 22px/1 var(--body); }
+.eh-step-b:disabled { opacity: .35; cursor: default; }
+.eh-step-b:disabled:hover { background: var(--panel); border-color: var(--line); }
+@media (max-width: 699px) { #eh-coach-ctl { flex: 1 1 100%; grid-template-columns: minmax(0, 1fr); } }
+/* Phones: the year-by-year results fold up (js/history.js). Each coach is a row that opens to his seasons, and
+   each season a row that opens to its games. An open coach's row is filled like the record book's era bars. */
+.eh-fold .eh-log-body { display: block; }
+.eh-coach { border-top: 1px solid var(--line); }
+.eh-coach > summary, details.eh-yr > summary { cursor: pointer; list-style: none; }
+.eh-coach > summary::-webkit-details-marker, details.eh-yr > summary::-webkit-details-marker { display: none; }
+.eh-coach > summary::before, details.eh-yr > summary::before { content: "\25B8"; flex: none; color: var(--muted); font-size: .9em; transition: transform .15s; }
+.eh-coach[open] > summary::before, details.eh-yr[open] > summary::before { transform: rotate(90deg); }
+.eh-coach > summary.eh-era { flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: var(--s2); min-height: 46px; margin: 0; padding: 6px 2px; background: transparent; color: var(--ink); }
+.eh-coach > summary.eh-era b { min-width: 0; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-base); }
+.eh-coach > summary.eh-era span { flex: none; opacity: 1; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+.eh-coach[open] > summary.eh-era { padding-inline: 10px; background: var(--ink); color: var(--panel); }
+.eh-coach[open] > summary.eh-era span, .eh-coach[open] > summary.eh-era::before { color: inherit; opacity: .82; }
+.eh-coach-body { padding: 0 0 var(--s3) 10px; }
+details.eh-yr > summary.eh-yr-h { justify-content: flex-start; align-items: center; gap: var(--s2); min-height: 42px; padding: 0; border-bottom-width: 1px; }
+details.eh-yr > summary.eh-yr-h span { margin-left: auto; font-size: var(--text-sm); }
+details.eh-yr .eh-g { margin: 6px 0 var(--s3); padding-left: 18px; }
+details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
+.eh-back, .eh-show { display: inline-flex; align-items: center; min-height: 40px; padding: 0; border: 0; background: transparent; color: var(--ink); font: 600 var(--text-sm)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.eh-back::before { content: "\2039"; margin-right: 6px; font-size: 1.5em; line-height: .8; }
+.eh-show::after { content: "\2191"; margin-left: 6px; font-family: var(--body); }
+.eh-back:hover, .eh-show:hover { color: var(--accent); }
+.eh-controls { scroll-margin-top: var(--s3); }
+
+/* ---------- Team pages (college football) ----------
+   One team at #team/<name>: who it is, with its résumé; six headline odds; then two columns, its schedule over
+   the seed chart and Make CFP over time over its conference's standings. Phones get one column. */
+.tp-top { justify-content: space-between; }
+.tp-back { display: inline-flex; align-items: center; min-height: 40px; color: var(--ink); font: 600 var(--text-sm)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
+.tp-back::before { content: "\2039"; margin-right: 6px; font-size: 1.5em; line-height: .8; }
+.tp-back:hover { color: var(--accent); }
+.tp { display: grid; gap: var(--s5); }
+.tp > *, .tp-grid > * { min-width: 0; }
+/* The head: logo and name, then the résumé's six tiles. They sit under the name on phones (three across) and
+   tablets (six across), and at its right on wide screens when the name leaves room. */
+.tp-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s4) var(--s5); }
+.tp-id { display: flex; align-items: center; gap: var(--s4); flex: 1 1 auto; min-width: 0; }
+.tp-id > .logo { width: 64px; height: 64px; }
+.tp-name { min-width: 0; }
+.tp-head h2 { font-size: var(--text-xl); }
+.tp-head p { margin-top: 4px; color: var(--muted); font-size: var(--text-sm); }
+/* A conference's logo beside its name: in a team page's head and its standings' title, in the Conference
+   pickers, and in the Rankings table's heading when one conference is chosen. Each file is square, so it is cropped to its mark: --r is the mark's width over its height (set by
+   js/app.js) and --lh the height the place calls for; a very wide wordmark stops at 2.75 times that height and
+   comes out a little shorter. C-USA's navy wordmark turns white on the dark theme. */
+.conf-logo { display: inline-block; width: min(calc(var(--lh, 16px) * var(--r)), calc(var(--lh, 16px) * 2.75)); height: min(var(--lh, 16px), calc(var(--lh, 16px) * 2.75 / var(--r))); object-fit: cover; vertical-align: middle; }
+.conf-logo-white { filter: brightness(0) invert(1); }
+#board-title { --lh: 22px; }
+#board-title .conf-logo { margin: -4px var(--s2) 0 0; }
+/* The Conference picker (Rankings and Scores): a button with the current choice and, when open, a list of the
+   team groups and the conferences with their logos. It looks like the selects beside it. The logos share one
+   slot width in the list, so the names line up. */
+.pick { position: relative; min-width: 0; }
+.pick-btn { display: flex; align-items: center; gap: var(--s2); width: 100%; min-width: 150px; min-height: 40px; padding: var(--s2) var(--s3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); font: 500 var(--text-sm) var(--body); text-align: left; cursor: pointer; }
+.pick-btn::after { content: ""; flex: none; width: 6px; height: 6px; margin: -3px 2px 0 auto; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.pick-btn:hover { border-color: var(--muted); }
+.pick-list { position: absolute; z-index: 12; top: calc(100% + 4px); left: 0; min-width: max(100%, 230px); max-height: 70vh; overflow: auto; padding: var(--s1) 0; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 24px rgb(0 0 0 / .2); }
+.pick-list.pick-end { left: auto; right: 0; }
+.pick-head { display: block; padding: var(--s2) var(--s3) var(--s1); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pick-opt { display: flex; align-items: center; gap: var(--s2); width: 100%; min-height: 34px; padding: 5px var(--s3); border: 0; background: transparent; color: var(--ink); font: 500 var(--text-sm) var(--body); text-align: left; cursor: pointer; }
+.pick-opt:hover, .pick-opt:focus-visible { background: var(--accent-soft); outline: 0; }
+.pick-opt[aria-selected="true"] { font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); }
+.pick-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; }
+.tp-head p .conf-logo { margin: -3px 5px 0 0; }
+.tp-card h3 { --lh: 18px; }
+.tp-card h3 .conf-logo { margin: -5px 6px -3px 0; }
+.tp-resume { flex: 1 1 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.tp-picks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); font-size: var(--text-sm); color: var(--muted); }
+.tp-picks b { color: var(--ink); font-weight: 600; }
+/* Headline odds: tiles shaded by their value, like the table's cells. */
+.tp-odds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tp-odds > div { display: flex; flex-direction: column; justify-content: space-between; gap: 2px; padding: var(--s3); background: color-mix(in srgb, var(--heat) calc(var(--p, 0) * 40%), var(--panel)); border: 1px solid var(--line); }
+.tp-card { container-type: inline-size; min-width: 0; padding: var(--s4); background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.tp-card h3 { margin-bottom: var(--s3); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+/* Three columns of cards on wide screens (schedule | Make CFP over time over the seed chart | standings), two on
+   tablets (the standings go under the charts). On phones the columns dissolve and the cards run in one order:
+   schedule, Make CFP over time, seed chart, standings. */
+.tp-grid { display: grid; gap: var(--s4); align-content: start; }
+.tp-col { display: contents; }
+.tp-1 { order: 1; }
+.tp-2 { order: 2; }
+.tp-3 { order: 3; }
+.tp-4 { order: 4; }
+.tp .ap-chart svg { max-width: none; }
+.tp .hist, .tp .hist-ax { height: 120px; }
+/* The page's two tables, schedule and standings: a line a row. The column of team names takes the room that's
+   left and trims a long name. */
+.tp-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.tp-table th { position: static; padding: 0 4px var(--s2); border-bottom: 1px solid var(--line); background: transparent; font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-align: left; }
+.tp-table td { padding: 7px 4px; vertical-align: middle; text-align: left; }
+.tp-table tbody tr:last-child td { border-bottom: 0; }
+.tp-table tr > :first-child { padding-left: 0; }
+.tp-table tr > :last-child { padding-right: 0; }
+.tp-games td:nth-child(2), .tp-stand td:first-child { width: 100%; max-width: 0; }
+.tg-date { color: var(--muted); }
+/* A game to come has its kickoff time, and on wide screens its network, on a second line under the date. */
+.tg-time { display: flex; align-items: center; gap: 6px; margin-top: 2px; font-size: var(--text-xs); color: var(--ink); }
+.tg-wide, .tg-long, .tg-tv { display: none; } /* phones: the date without its weekday, short names, no network */
+.tg-team { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 600; }
+.tg-team .logo { width: 22px; height: 22px; }
+.tg-team > :last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tg-vs { flex: none; width: 1.2em; font-weight: 400; font-size: var(--text-xs); color: var(--muted); }
+.tg-team .lg-rank { margin-right: 4px; font: 500 var(--text-xs) var(--body); color: var(--muted); }
+.tlink { color: inherit; text-decoration: none; }
+.tlink:hover { text-decoration: underline; }
+/* The right-hand column: how the game went, or for a game left its win chance and pick box. The parts of a
+   cell sit in one row against the right edge, and stack on phones when they don't fit. */
+.tp-games .tg-res { text-align: right; }
+.tg-cell { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 3px var(--s2); }
+.tg-part { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tg-score { min-width: 2.9em; text-align: right; }
+.tg-win { min-width: 2.3em; font-weight: 600; text-align: right; }
+.tg-note { color: var(--muted); }
+.tp-games .mini button.pick-box { width: 26px; height: 26px; }
+/* Conference standings: each team's conference and overall records, then its chances to reach the title game
+   and to win it, shaded like the odds table's cells. The page's own team is bold with a bar at the left; the
+   table reaches a little past the card's text on both sides so the bar and the shading have room. */
+.tp-stand { width: calc(100% + 18px); margin-inline: -10px -8px; }
+.tp-stand tr > :first-child { padding-left: 10px; }
+.tp-stand tr > :last-child { padding-right: 8px; }
+.tp-stand td { padding-block: 5px; }
+.tp-stand th { white-space: normal; }
+.tp-stand th:not(:first-child), .tp-stand td:not(:first-child) { text-align: right; }
+.tp-stand td.st-pct { background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
+.tp-stand .st-me td, .tp-stand .st-me .tg-team { font-weight: 700; }
+.tp-stand .st-me td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.tp-stand .st-div th { padding-top: var(--s3); color: var(--ink); text-align: left; }
+/* The tables go by their card's width, not the screen's, since a card can be a third of the page. */
+@container (min-width: 360px) {
+  .tg-wide, .tg-long { display: inline; }
+  .tg-short { display: none; }
+  .tp-table th, .tp-table td { padding-inline: var(--s2); }
+  .tg-cell { flex-wrap: nowrap; }
+  .tg-tv { display: inline-flex; }
+}
+@media (min-width: 600px) {
+  .tp-odds, .tp-resume { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) {
+  .tp-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
+  .tp-col { display: grid; gap: var(--s4); align-content: start; min-width: 0; }
+  .tp-col:first-child { grid-row: span 2; }
+}
+@media (min-width: 1100px) {
+  .tp-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .tp-col:first-child { grid-row: auto; }
+}
+@media (min-width: 900px) {
+  .tp-head h2 { font-size: var(--text-2xl); }
+  .tp-id { flex: 0 1 auto; }
+  .tp-resume { flex: none; grid-template-columns: repeat(6, auto); column-gap: var(--s5); }
+}
+
+/* ---------- Team page finish ----------
+   The head is a panel washed with the team's color from the left, with a bar of it along the top. The odds tiles
+   are plain with a meter along the bottom; cards have a ruled heading with their lead number at the right. */
+.tp { gap: var(--s4); }
+.tp-head { position: relative; padding: var(--s5) var(--s4) var(--s4); background: linear-gradient(100deg, color-mix(in srgb, var(--tc, var(--accent)) 16%, var(--panel)) 0%, var(--panel) 55%); border: 1px solid var(--line); border-top: 4px solid var(--tc, var(--accent)); box-shadow: var(--shadow); }
+.tp-id > .logo { filter: drop-shadow(0 1px 2px rgb(0 0 0 / .18)); }
+.tp-head h2 { letter-spacing: .01em; line-height: 1; }
+.tp-head p { margin-top: 6px; }
+.tp-resume dt, .tp-odds dt { font: 600 var(--text-xs)/1.2 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+/* Editorial layout (the user chose it over boxed cards): below the head nothing sits in a box. The odds are one
+   strip of figures between rules, and each section is set off by a light rule under its heading and by space. */
+.tp { gap: var(--s6); }
+/* The odds strip: a row of cells, each shaded green by its chance like the table's cells,
+   with 1px gaps between them. */
+.tp-odds { gap: 1px; padding: 0; background: var(--line); border: 1px solid var(--line); }
+.tp-odds > div { justify-content: space-between; gap: var(--s3); padding: var(--s3) var(--s4) var(--s4); background: color-mix(in srgb, var(--heat) calc(var(--p, 0) * 45%), var(--bg)); border: 0; box-shadow: none; }
+.tp-odds dd { margin: 0; font-size: 2.25rem; line-height: .95; letter-spacing: -.01em; }
+.tp-card { padding: 0; background: none; border: 0; box-shadow: none; }
+.tp-grid { column-gap: var(--s6); row-gap: var(--s6); }
+.tp-col { row-gap: var(--s6) !important; }
+.tp-card h3.tp-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); margin: 0 0 var(--s3); padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); font: 600 var(--text-sm)/1.2 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--ink); }
+.tp-card h3.tp-h > span:first-child { display: flex; align-items: center; min-width: 0; }
+.tp-h-side { flex: none; font: 500 var(--text-sm)/1 var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.tp-h-side b { font: 700 var(--text-md)/1 var(--display); color: var(--ink); }
+.tp-foot { margin: var(--s3) 0 0; font-size: var(--text-xs); color: var(--muted); }
+/* Charts: room for the labels. */
+.tp .ap-chart svg { margin-top: 0; }
+.tp .ap-y, .tp .ap-x { font-size: 10px; }
+.tp .hist i { background: var(--bar); }
+/* Tables: rules between rows, a hover tint, the games still to play under their own divider, a live game marked. */
+.tp-table tbody tr > * { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.tp-table tbody tr:hover > td { background-color: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.tp-stand tbody tr:hover > td.st-pct { background-image: linear-gradient(color-mix(in srgb, var(--accent-soft) 40%, transparent), color-mix(in srgb, var(--accent-soft) 40%, transparent)); }
+/* Every game is one height, tall enough for a game to come's date with its kickoff line under it. */
+.tp-games tbody td { height: 48px; padding-block: 3px; }
+.tp-games .tg-time { margin-top: 1px; line-height: 1.2; }
+.tp-games .tg-live td:first-child { box-shadow: inset 3px 0 0 #d42a1f; padding-left: var(--s2); }
+.tp-games .res { display: inline-block; width: 1.1em; text-align: center; }
+.tp-stand td.st-low { color: var(--muted); }
+.tp-table a.tlink:hover { color: var(--accent); text-decoration: none; }
+/* Wide screens: the charts column stays in view while the longer schedule and standings scroll past it. */
+@media (min-width: 1100px) {
+  .tp-col:nth-child(2) { position: sticky; top: var(--s4); }
+}
+@media (min-width: 900px) {
+  .tp-head { padding: var(--s5) var(--s5) var(--s4); }
+}

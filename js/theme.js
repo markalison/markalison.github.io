@@ -17,6 +17,8 @@
     var b = document.getElementById('theme');
     if (!b) return;
     var dark = isDark(), label = dark ? 'Switch to light theme' : 'Switch to dark theme';
+    // In the menu it's a switch: its label stays and the switch shows the state.
+    if (b.classList.contains('menu-theme')) { b.setAttribute('aria-checked', dark ? 'true' : 'false'); return; }
     b.innerHTML = dark ? SUN : MOON;
     b.setAttribute('aria-label', label);
     b.title = label;

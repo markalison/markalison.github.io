@@ -87,10 +87,12 @@ window.EloHistory = (function () {
     root.innerHTML =
       '<div class="eh-controls">' +
         '<div class="ctl"><label for="eh-team">Team</label><select id="eh-team"></select></div>' +
-        '<div class="ctl" id="eh-coach-ctl" hidden><label for="eh-coach">Coach</label><select id="eh-coach"></select></div>' +
+        '<div class="ctl" id="eh-coach-ctl" hidden><label for="eh-coach">Coach</label><div class="eh-step">' +
+          '<button type="button" class="btn eh-step-b" data-ehstep="-1" aria-label="Earlier coach" title="Earlier coach">\u2039</button><select id="eh-coach"></select>' +
+          '<button type="button" class="btn eh-step-b" data-ehstep="1" aria-label="Later coach" title="Later coach">\u203a</button></div></div>' +
       '</div>' +
       '<div class="eh-plot" id="eh-plot"><canvas id="eh-base"></canvas><canvas id="eh-top" role="img" tabindex="0"></canvas><div class="eh-tip" id="eh-tip" hidden></div></div>' +
-      '<p class="eh-hint">Each coach’s era is shaded along the top — click one (or use the Coach menu) to zoom to those years. Hover the line for each game; a star marks a national championship season.</p>' +
+      '<p class="eh-hint">Each coach’s era is shaded along the top. Click one, or use the Coach menu and the arrows beside it, to zoom to those years. Hover the line for each game; a star marks a national championship season.</p>' +
       '<div class="eh-cl-wrap" id="eh-cl" hidden></div>' +
       '<section class="eh-facts" id="eh-story" aria-live="polite"></section>' +
       '<div id="eh-log"></div>' +
@@ -110,7 +112,13 @@ window.EloHistory = (function () {
       var b = e.target.closest('button');
       if (!b) return;
       if (b.dataset.ehteam) { select(+b.dataset.ehteam); els.plot.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+      if (b.dataset.ehstep) stepCoach(+b.dataset.ehstep);
+      if (b.dataset.ehcoach) {
+        pickCoach(+b.dataset.ehcoach);
+        if (b.dataset.ehshow) root.querySelector('.eh-controls').scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
     });
+    try { FOLD.addEventListener('change', renderLog); } catch (e) {}
     els.top.addEventListener('pointermove', onMove);
     els.top.addEventListener('pointerleave', function () { st.hover = null; st.hoverK = null; st.hoverEra = null; els.top.style.cursor = ''; els.tip.hidden = true; drawTop(); });
     els.top.addEventListener('click', onClick);
@@ -429,6 +437,7 @@ window.EloHistory = (function () {
     return out;
   }
   function rec(w, l, ti) { return w + '–' + l + (ti ? '–' + ti : ''); }
+  function years(from, to) { return from === to ? String(from) : from + '–' + to; }   // a one-season stay is just its year
   // The records' postseason note is messy (sponsor names, all-caps, a few are just locations). Tidy it to a
   // readable bowl/championship label, or a plain "Postseason" when there is nothing usable.
   function titleCase(s) { return s.toLowerCase().replace(/\b([a-z])/g, function (m, c) { return c.toUpperCase(); }).replace(/\bbcs\b/i, 'BCS').replace(/\bcfp\b/i, 'CFP').replace(/\bLsu\b/, 'LSU').replace(/\bTcu\b/, 'TCU').replace(/\bUconn\b/, 'UConn').replace(/\bat&t\b/i, 'AT&T').replace(/\.com\b/i, '.com'); }
@@ -439,49 +448,61 @@ window.EloHistory = (function () {
     if (/\b(bowl|classic|playoff|championship)\b/i.test(s)) return titleCase(s);
     return 'Postseason'; // e.g. a stray "AT TEMPE AZ" with no bowl in it
   }
-  function seasonBlock(s) {
-    var w = 0, l = 0, ti = 0;
+  // On a phone the log folds up, so it can be read without scrolling past every game: each coach is a row that
+  // opens to his seasons and each season a row that opens to its games, newest first. Wider screens keep the
+  // open record book, oldest first.
+  var FOLD = window.matchMedia ? matchMedia('(max-width: 699px)') : { matches: false };
+  function tally(seasons) {
+    var r = { w: 0, l: 0, t: 0 };
+    seasons.forEach(function (s) { s.games.forEach(function (g) { if (g.pf > g.pa) r.w++; else if (g.pf < g.pa) r.l++; else r.t++; }); });
+    return r;
+  }
+  function seasonBlock(s, fold) {
+    var r = tally([s]);
     var rows = s.games.map(function (g) {
       var res = g.pf > g.pa ? 'w' : g.pf < g.pa ? 'l' : 't';
-      if (res === 'w') w++; else if (res === 'l') l++; else ti++;
       var opp = (g.site === 1 ? '<i>at</i> ' : g.site === 2 ? '<i>vs</i> ' : '') + esc(g.opp);
       var post = g.post ? '<em class="eh-bowl">' + esc(bowlName(g.post)) + '</em>' : '';
       return '<li class="eh-g-' + res + '"><span class="eh-g-d">' + shortDate(g.d) + '</span><span class="eh-g-o">' + opp + post + '</span><span class="eh-g-s">' + g.pf + '–' + g.pa + '</span></li>';
     }).join('');
-    return '<div class="eh-yr"><div class="eh-yr-h"><b>' + s.y + '</b><span>' + rec(w, l, ti) + '</span></div><ul class="eh-g">' + rows + '</ul></div>';
+    var head = '<b>' + s.y + '</b><span>' + rec(r.w, r.l, r.t) + '</span>';
+    return fold ? '<details class="eh-yr"><summary class="eh-yr-h">' + head + '</summary><ul class="eh-g">' + rows + '</ul></details>'
+      : '<div class="eh-yr"><div class="eh-yr-h">' + head + '</div><ul class="eh-g">' + rows + '</ul></div>';
   }
   function logPanel(i) {
     var dt = details[i];
     if (dt === 'loading') return '<div class="eh-log-load">Loading games…</div>';
     if (!dt) return '';
-    var t = H.teams[i], seasons = seasonsOf(i);
+    var t = H.teams[i], seasons = seasonsOf(i), fold = FOLD.matches;
     if (!seasons.length) return '';
-    // When a coach is chosen on the chart, the log narrows to just their seasons (and opens so it is in view);
-    // otherwise it is the full history, grouped under each coach, collapsed.
-    var sel = st.coach >= 0 ? coachStats(i).filter(function (r) { return r.idx === st.coach; })[0] : null;
+    // When a coach is chosen, the log narrows to just their seasons (and opens so it is in view); otherwise it
+    // is the full history, grouped under each coach.
+    var picks = coachStats(i), sel = st.coach >= 0 ? picks.filter(function (r) { return r.idx === st.coach; })[0] : null;
     var shown = sel ? seasons.filter(function (s) { return s.y >= sel.first && s.y <= sel.last; }) : seasons;
-    var total = 0, cr = {};
-    shown.forEach(function (s) { total += s.games.length; });
-    if (!sel) seasons.forEach(function (s) {
-      var c = coachAt(i, s.y); if (!c) return;
-      var key = c[1] + ':' + c[0], r = cr[key] || (cr[key] = { w: 0, l: 0, t: 0 });
-      s.games.forEach(function (g) { if (g.pf > g.pa) r.w++; else if (g.pf < g.pa) r.l++; else r.t++; });
-    });
-    var html = '', lastKey = null;
+    var total = 0, groups = [], last = null;
     shown.forEach(function (s) {
-      if (!sel) {
-        var c = coachAt(i, s.y), key = c ? c[1] + ':' + c[0] : null;
-        if (key !== lastKey) {
-          lastKey = key;
-          if (c) { var r = cr[key]; html += '<div class="eh-era"><b>' + esc(c[0]) + '</b><span>' + c[1] + '–' + c[2] + ' · ' + rec(r.w, r.l, r.t) + '</span></div>'; }
-        }
-      }
-      html += seasonBlock(s);
+      total += s.games.length;
+      // A run of seasons under one coach, or under none where the records don't name one.
+      var c = sel ? null : coachAt(i, s.y), key = c ? c[1] + ':' + c[0] : '';
+      if (!last || last.key !== key) groups.push(last = { key: key, c: c, seasons: [] });
+      last.seasons.push(s);
     });
+    var block = function (s) { return seasonBlock(s, fold); }, newest = function (list) { return list.slice().reverse(); };
+    var html = sel
+      ? (fold ? '<button type="button" class="eh-back" data-ehcoach="-1">All coaches</button>' + newest(shown).map(block).join('') : shown.map(block).join(''))
+      : (fold ? newest(groups) : groups).map(function (g) {
+        var r = tally(g.seasons), span = g.c ? years(g.c[1], g.c[2]) : years(g.seasons[0].y, g.seasons[g.seasons.length - 1].y);
+        var bar = '<b>' + (g.c ? esc(g.c[0]) : 'No coach on record') + '</b><span>' + span + ' · ' + rec(r.w, r.l, r.t) + '</span>';
+        // An opened coach can be picked from here too, which is easier than tapping his sliver of the chart.
+        var show = g.c && picks.length > 1 ? '<button type="button" class="eh-show" data-ehcoach="' + (staff[i] || []).indexOf(g.c) + '" data-ehshow="1">Show on chart</button>' : '';
+        if (fold) return '<details class="eh-coach"><summary class="eh-era">' + bar + '</summary><div class="eh-coach-body">' + show + newest(g.seasons).map(block).join('') + '</div></details>';
+        return (g.c ? '<div class="eh-era">' + bar + '</div>' : '') + g.seasons.map(block).join('');
+      }).join('');
     var summary = sel
-      ? '<span class="eh-log-t">' + esc(sel.name) + '</span><span class="eh-log-n">' + sel.first + '–' + sel.last + ' · ' + rec(sel.w, sel.l, sel.t) + ' · ' + total.toLocaleString() + ' games</span>'
+      ? '<span class="eh-log-t">' + esc(sel.name) + '</span><span class="eh-log-n">' + years(sel.first, sel.last) + ' · ' + rec(sel.w, sel.l, sel.t) + ' · ' + total.toLocaleString() + ' games</span>'
       : '<span class="eh-log-t">Year-by-year results</span><span class="eh-log-n">' + t.y[0] + '–' + t.y[t.y.length - 1] + ' · ' + total.toLocaleString() + ' games</span>';
-    return '<details class="eh-log"' + (sel ? ' open' : '') + '><summary>' + summary + '</summary>' +
+    // The folded list is short enough to start open.
+    return '<details class="eh-log' + (fold ? ' eh-fold' : '') + '"' + (sel || fold ? ' open' : '') + '><summary>' + summary + '</summary>' +
       '<div class="eh-log-body">' + html + '</div></details>';
   }
   function renderLog() { if (els.log) els.log.innerHTML = logPanel(st.a); }
@@ -506,13 +527,23 @@ window.EloHistory = (function () {
     else { var t = H.teams[st.a], a = t.y[0], z = t.y[t.y.length - 1] + 1; st.coach = ci; st.zoom = [Math.max(r.first, a), Math.min(r.last + 1, z)]; }
     drawAll(); renderCoach(); renderLog();
   }
+  // The buttons beside the Coach menu: one coach earlier or later. The full history sits after the latest coach,
+  // so "earlier" from it lands on the current coach and "later" from the latest coach goes back to it.
+  function stepCoach(dir) {
+    var rows = coachStats(st.a), at = rows.map(function (r) { return r.idx; }).indexOf(st.coach);
+    var to = (at < 0 ? rows.length : at) + dir;
+    if (to < 0 || to > rows.length) return;
+    pickCoach(to === rows.length ? -1 : rows[to].idx);
+  }
   function renderCoach() {
     if (!els.coachWrap || !els.coach) return;
     var rows = coachStats(st.a);
     if (rows.length < 2) { els.coachWrap.hidden = true; return; }
     els.coachWrap.hidden = false;
+    var at = rows.map(function (r) { return r.idx; }).indexOf(st.coach), step = els.coachWrap.querySelectorAll('[data-ehstep]');
+    if (step.length === 2) { step[0].disabled = at === 0; step[1].disabled = at < 0; }
     els.coach.innerHTML = '<option value="-1">Full history</option>' +
-      rows.map(function (r) { return '<option value="' + r.idx + '"' + (r.idx === st.coach ? ' selected' : '') + '>' + esc(r.name) + ' (' + r.first + '–' + r.last + ', ' + rec(r.w, r.l, r.t) + ')</option>'; }).join('');
+      rows.map(function (r) { return '<option value="' + r.idx + '"' + (r.idx === st.coach ? ' selected' : '') + '>' + esc(r.name) + ' (' + years(r.first, r.last) + ', ' + rec(r.w, r.l, r.t) + ')</option>'; }).join('');
     els.coach.value = String(st.coach);
   }
 

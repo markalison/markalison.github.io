@@ -6,8 +6,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=dc9df35dec">
-  <script src="js/theme.js?v=dc9df35dec"></script>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22%2316a36a%22%2F%3E%3Cpath%20d%3D%22M6%209h9v14H6M15%2016h6.5%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.6%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2216%22%20r%3D%223%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E">
+  <link rel="stylesheet" href="css/styles.css?v=b70ba02e1b">
+  <script src="js/theme.js?v=b70ba02e1b"></script>
   <title>NHL playoff odds · Playoff Odds Board</title>
   <meta name="description" content="Each NHL team's chance to make the playoffs, win its division and conference and win the Stanley Cup, from simulating the rest of the season.">
 </head>
@@ -16,13 +17,15 @@
 <header class="site-header">
   <div class="container header-bar">
     <div class="menu">
-      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu" title="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
         <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
         <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
         <a href="nhl.html#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
         <a href="ncaaf.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
         <a href="ncaab.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
+        <hr>
+        <button class="menu-theme" id="theme" type="button" role="switch" aria-checked="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg><span>Night mode</span><span class="switch" aria-hidden="true"></span></button>
       </div>
     </div>
     <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></div>
@@ -31,7 +34,7 @@
       <a href="nhl.html#playoff" data-page="playoff">Bracket</a>
       <a href="nhl.html#scores" data-page="scoreboard">Scores</a>
     </nav>
-    <button class="btn icon-btn" id="theme" type="button"></button>
+    <a class="brand" href="./" aria-label="Playoff Odds Board, home"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" fill="#16a36a"/><path d="M6 9h9v14H6M15 16h6.5" fill="none" stroke="#fff" stroke-width="2.6"/><circle cx="24" cy="16" r="3" fill="#fff"/></svg><span class="brand-name">Playoff Odds <span>Board</span></span></a>
   </div>
 </header>
 
@@ -82,7 +85,7 @@
   <div class="stack" id="page-scoreboard" hidden>
     <div class="filters sb-bar">
       <div class="ctl"><label for="nfl-week">Day</label><select id="nfl-week"></select></div>
-      <div class="ctl sb-sort"><label for="nfl-sb-sort">Sort by</label><select id="nfl-sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
+      <div class="ctl sb-sort"><span id="nfl-sb-sort-label">Sort by</span><div class="seg" id="nfl-sb-sort" role="group" aria-labelledby="nfl-sb-sort-label"><button type="button" data-sbsort="time" aria-pressed="true">Start time</button><button type="button" data-sbsort="impact" aria-pressed="false">Playoff impact</button></div></div>
     </div>
     <p class="live-note" id="nfl-live-note" hidden></p>
     <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
@@ -92,6 +95,7 @@
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
+      <a class="brand footer-logo" href="./"><svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" fill="#16a36a"/><path d="M6 9h9v14H6M15 16h6.5" fill="none" stroke="#fff" stroke-width="2.6"/><circle cx="24" cy="16" r="3" fill="#fff"/></svg><span class="brand-name">Playoff Odds <span>Board</span></span></a>
       <p>Playoff odds for the 2026 season, from simulating every remaining game and committee ranking.</p>
     </div>
     <nav aria-label="Footer">
@@ -100,8 +104,8 @@
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="nhl-engine.js?v=dc9df35dec"></script>
-<script src="nhl-data.js?v=dc9df35dec"></script>
-<script src="js/nhl.js?v=dc9df35dec"></script>
+<script src="nhl-engine.js?v=b70ba02e1b"></script>
+<script src="nhl-data.js?v=b70ba02e1b"></script>
+<script src="js/nhl.js?v=b70ba02e1b"></script>
 </body>
 </html>

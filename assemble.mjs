@@ -82,6 +82,7 @@ const HEAD = `  <meta charset="utf-8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#16a36a"/><path d="M6 9h9v14H6M15 16h6.5" fill="none" stroke="#fff" stroke-width="2.6"/><circle cx="24" cy="16" r="3" fill="#fff"/></svg>')}">
   <link rel="stylesheet" href="css/styles.css?v=${V}">
   <script src="js/theme.js?v=${V}"></script>`;
 // Header: the sport menu (league logo and name) at the left, that sport's tabs, and the night-mode switch
@@ -90,20 +91,24 @@ const HEAD = `  <meta charset="utf-8">
 const SPORTS = { ncaaf: { name: 'NCAAF', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg', href: 'ncaaf.html#rankings' }, nfl: { name: 'NFL', logo: 'https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg', href: './#rankings' }, nba: { name: 'NBA', logo: 'https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg', href: 'nba.html#rankings' },
   ncaab: { name: 'NCAAB', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg', href: 'ncaab.html#rankings' },
   nhl: { name: 'NHL', logo: 'https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg', href: 'nhl.html#rankings' } };
+// The brand mark: a square of the brand green with a bracket in it, two lines joining into one that ends in a
+// dot (the team that comes out of it). Used at the right of the header, in the footer and as the favicon.
+const MARK = (cls) => `<svg class="${cls}" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" fill="#16a36a"/><path d="M6 9h9v14H6M15 16h6.5" fill="none" stroke="#fff" stroke-width="2.6"/><circle cx="24" cy="16" r="3" fill="#fff"/></svg>`;
 const header = (page) => {
   // The NFL, NBA and college basketball pages are standings pages; college football ranks teams.
   const sport = ['nfl', 'nba', 'nhl', 'ncaab'].includes(page) ? page : 'ncaaf', pro = sport !== 'ncaaf', base = sport === 'nfl' ? './' : sport + '.html', cur = SPORTS[sport];
-  const option = (k) => `<a href="${SPORTS[k].href}"${SPORTS[k] === cur ? ' aria-current="true"' : ''}><img class="menu-logo" src="${SPORTS[k].logo}" alt=""><span>${SPORTS[k].name}</span></a>`;
+  // One row: the menu (☰: every sport, then the night mode switch), the sport you're in, its tabs, and the brand
+  // at the right.
+  const on = (k) => SPORTS[k] === cur && page !== 'about' ? ' aria-current="true"' : '';
+  const item = (k) => `<a href="${SPORTS[k].href}"${on(k)}><img class="menu-logo" src="${SPORTS[k].logo}" alt=""><span>${SPORTS[k].name}</span></a>`;
   return `<header class="site-header">
   <div class="container header-bar">
     <div class="menu">
-      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu" title="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
-        ${option('nfl')}
-        ${option('nba')}
-        ${option('nhl')}
-        ${option('ncaaf')}
-        ${option('ncaab')}
+        ${['nfl', 'nba', 'nhl', 'ncaaf', 'ncaab'].map(item).join('\n        ')}
+        <hr>
+        <button class="menu-theme" id="theme" type="button" role="switch" aria-checked="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg><span>Night mode</span><span class="switch" aria-hidden="true"></span></button>
       </div>
     </div>
     <div class="sport-now"><img src="${cur.logo}" alt=""><span>${cur.name}</span></div>
@@ -113,13 +118,14 @@ const header = (page) => {
       <a href="${base}#scores" data-page="scoreboard">Scores</a>${pro ? '' : `
       <a href="${base}#history" data-page="history">History</a>`}
     </nav>
-    <button class="btn icon-btn" id="theme" type="button"></button>
+    <a class="brand" href="./" aria-label="Playoff Odds Board, home">${MARK('brand-mark')}<span class="brand-name">Playoff Odds <span>Board</span></span></a>
   </div>
 </header>`;
 };
 const footer = (page) => `<footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
+      <a class="brand footer-logo" href="./">${MARK('brand-mark')}<span class="brand-name">Playoff Odds <span>Board</span></span></a>
       <p>Playoff odds for the ${D.season} season, from simulating every remaining game and committee ranking.</p>
     </div>
     <nav aria-label="Footer">

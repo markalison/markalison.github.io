@@ -77,6 +77,13 @@ nhlJs = writeData('./nhl-data.js', nhlJs, NHD.D.asOf);
 const V = createHash('sha1').update([dataJs, nflJs, nbaJs, cbJs, nhlJs, rd('./js/nhl.js'), rd('./nhl-engine.js'), rd('./engine.js'), rd('./js/app.js'), rd('./js/nfl.js'), rd('./nfl-engine.js'), rd('./js/nba.js'), rd('./nba-engine.js'), rd('./js/ncaab.js'), rd('./ncaab-engine.js'), rd('./js/theme.js'), rd('./js/history.js'), rd('./css/styles.css')].join('')).digest('hex').slice(0, 10);
 
 // ---------- Shared head and footer ----------
+// Visitor counts: Cloudflare Web Analytics (free, no cookies). Paste the site token from the Cloudflare
+// dashboard (Web Analytics > the site > Manage site > JS snippet, the "token" value). Empty adds nothing. The
+// token is public by design: it only lets a page report a visit. It loads only on the live site (Cloudflare
+// refuses reports from anywhere else), so local previews neither count nor log errors.
+const CF_ANALYTICS_TOKEN = 'de4a8127e591412bb27f6d436ef89dff';
+const ANALYTICS = /^[0-9a-f]{32}$/i.test(CF_ANALYTICS_TOKEN)
+  ? `\n  <script>if (location.hostname === 'markalison.github.io') { var cfb = document.createElement('script'); cfb.defer = true; cfb.src = 'https://static.cloudflareinsights.com/beacon.min.js'; cfb.setAttribute('data-cf-beacon', '{"token": "${CF_ANALYTICS_TOKEN}", "spa": true}'); document.head.appendChild(cfb); }</script>` : '';
 const HEAD = `  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -84,7 +91,7 @@ const HEAD = `  <meta charset="utf-8">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#16a36a"/><path d="M6 9h9v14H6M15 16h6.5" fill="none" stroke="#fff" stroke-width="2.6"/><circle cx="24" cy="16" r="3" fill="#fff"/></svg>')}">
   <link rel="stylesheet" href="css/styles.css?v=${V}">
-  <script src="js/theme.js?v=${V}"></script>`;
+  <script src="js/theme.js?v=${V}"></script>${ANALYTICS}`;
 // Header: the sport menu (league logo and name) at the left, that sport's tabs, and the night-mode switch
 // on its own at the right. Each page marks its current tab from the address's #; js/theme.js runs the
 // menu and the switch.

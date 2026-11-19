@@ -161,7 +161,8 @@ input[type=search] { width: 100%; min-width: 0; }
    the other columns appear from 900px, and the table scrolls sideways until it fits. */
 /* Phones: the table scrolls inside about half the screen, leaving room to scroll the page around it.
    svh ignores the browser bar, so the height doesn't jump while scrolling; vh is the fallback. */
-.table-wrap { overflow: auto; max-height: 55vh; max-height: 55svh; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); transition: opacity .2s; }
+/* Tables scroll sideways when they don’t fit, never up and down on their own: they are part of the page. */
+.table-wrap { overflow-x: auto; overflow-y: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); transition: opacity .2s; }
 .table-wrap.busy { opacity: .55; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table { table-layout: fixed; }
@@ -199,7 +200,7 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 /* The This week column uses the same stack, a size up. */
 .next .ss { font-size: var(--text-sm); }
 .next .ss + small { margin-top: 3px; }
-th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+th { background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 th button { all: unset; cursor: pointer; }
 th abbr[title] { text-decoration: none; }
 th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -281,7 +282,6 @@ th.pick, td.pick { text-align: center; }
   .odds-table:not(.expanded) .c-team { width: 190px; }
 }
 @media (min-width: 900px) {
-  .table-wrap { max-height: 82vh; }
   /* Each column sized to its content; headings wrap onto two lines rather than widening a column. */
   .odds-table { min-width: 834px; }
   .odds-table .sec, .odds-table .tc { display: table-cell; }
@@ -1193,10 +1193,6 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-games .res { display: inline-block; width: 1.1em; text-align: center; }
 .tp-stand td.st-low { color: var(--muted); }
 .tp-table a.tlink:hover { color: var(--accent); text-decoration: none; }
-/* Wide screens: the charts column stays in view while the longer schedule and standings scroll past it. */
-@media (min-width: 1100px) {
-  .tp-col:nth-child(2) { position: sticky; top: var(--s4); }
-}
 @media (min-width: 900px) {
   .tp-head { padding: var(--s5) var(--s5) var(--s4); }
 }

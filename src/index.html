@@ -48,10 +48,12 @@
   <div class="stack" id="page-team" hidden>
     <div class="filters tp-top">
       <a class="tp-back" href="#rankings">All teams</a>
-      <div class="ctl"><label for="mode-team">Ratings used</label><select id="mode-team" class="mode-select"></select></div>
+      <nav class="seg tp-views" id="tp-views" aria-label="Team views"></nav>
+      <div class="ctl" id="mode-team-ctl"><label for="mode-team">Ratings used</label><select id="mode-team" class="mode-select"></select></div>
     </div>
     <div class="tp" id="team-page"></div>
-    <!-- The team's all-time Elo history. Kept outside #team-page so live updates don't redraw it. -->
+    <!-- The team's all-time Elo history, its History view (#team/<name>/history). Kept outside #team-page so live
+         updates don't redraw it. -->
     <section class="tp-card tp-history" id="team-history-wrap" aria-labelledby="tp-hist-h" hidden>
       <h3 class="tp-h" id="tp-hist-h"><span>All-time history</span><span class="tp-h-side" id="tp-hist-side"></span></h3>
       <div class="eh" id="team-history"></div>

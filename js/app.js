@@ -575,10 +575,26 @@
   }
   // The head of the page: who the team is (logo, full name, CFP rank, conference with its logo, and record) and
   // its résumé.
+  // Under the name, its conference; then the numbers that matter most at a glance, large: the record and the
+  // team's place in the CFP ranking and the AP and Coaches polls, each with its move since last week.
   function teamHead(x) {
     var t = x.t, rec = x.rec, ind = t.conf === 'ind', conf = CFP.CONF_NAME[t.conf] || t.conf;
-    var bits = (t.rank ? ['CFP No. ' + t.rank] : []).concat(confLogo(t.conf) + esc(conf), rec.text + (ind ? '' : ' (' + rec.cw + '-' + rec.cl + ' ' + esc(CFP.CONF_ABBR[t.conf] || conf) + ')'));
-    return '<div class="tp-head"' + (t.color && /^[0-9a-f]{6}$/i.test(t.color) ? ' style="--tc:#' + t.color + '"' : '') + '><div class="tp-id">' + logo(t, 64) + '<div class="tp-name"><h2>' + esc(t.full || t.name) + '</h2><p>' + bits.join(' \u00b7 ') + '</p></div></div>' + resumeBlock(x) + '</div>';
+    function move(now, prev) {
+      if (!prev) return '<small class="mv up" title="Unranked last week">new</small>';
+      return prev > now ? '<small class="mv up" title="Up from No. ' + prev + '">\u25b2' + (prev - now) + '</small>' : prev < now ? '<small class="mv down" title="Down from No. ' + prev + '">\u25bc' + (now - prev) + '</small>' : '';
+    }
+    function poll(label, title, now, prev, has) {
+      var v = now ? '<span><span class="tp-hash">#</span>' + now + '</span>' + move(now, prev) : '<span class="tp-nr" title="Not ranked">NR</span>';
+      return has ? '<div><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + v + '</dd></div>' : '';
+    }
+    var stand = '<dl class="tp-standing">' +
+      '<div class="tp-rec"><dt>Record</dt><dd>' + rec.text + (ind ? '' : '<small>' + rec.cw + '-' + rec.cl + ' ' + esc(CFP.CONF_ABBR[t.conf] || conf) + '</small>') + '</dd></div>' +
+      poll('CFP', 'College Football Playoff committee ranking', t.rank, t.rankPrev || (t.rank ? t.rank : 0), D.hasCfp) +
+      poll('AP', 'AP Top 25 poll', t.ap && t.ap.r, t.ap && t.ap.p, true) +
+      poll('Coaches', 'AFCA Coaches Poll', t.coach && t.coach.r, t.coach && t.coach.p, true) +
+    '</dl>';
+    return '<div class="tp-head"' + (t.color && /^[0-9a-f]{6}$/i.test(t.color) ? ' style="--tc:#' + t.color + '"' : '') + '><div class="tp-id">' + logo(t, 64) +
+      '<div class="tp-name"><h2>' + esc(t.full || t.name) + '</h2><p>' + confLogo(t.conf) + esc(conf) + '</p>' + stand + '</div></div>' + resumeBlock(x) + '</div>';
   }
   // The headline odds, as tiles shaded like the table's cells. An independent has no conference to win.
   function teamOdds(x) {
@@ -644,6 +660,8 @@
     var i = teamIndex(), R = res();
     if (i < 0) { $('team-page').innerHTML = '<p class="live-empty">That team isn\u2019t in this season\u2019s data. <a href="#rankings">See all teams</a>.</p>'; return; }
     var x = { i: i, t: D.teams[i], r: R.teams[i], rec: record(i) };
+    // The History view keeps the team's header; the history itself sits below, outside this block.
+    if (st.teamView === 'history') { $('team-page').innerHTML = teamHead(x); return; }
     // Picks made anywhere on the site are part of every number here, so the page says when there are any.
     var n = Object.keys(st.picks).length;
     $('team-page').innerHTML = teamHead(x) +
@@ -1217,10 +1235,12 @@
   function showPage() {
     var hash = location.hash.replace('#', ''), p = OLD_HASH[hash] || hash;
     if (hash === 'about') { location.replace('about.html'); return hash; } // older links
-    // A team's page: #team/<name>. A name that isn't a team's goes to the table of all teams.
-    var tm = /^team\/(.*)$/.exec(hash), ti = null;
+    // A team's page: #team/<name> for this season, #team/<name>/history for its all-time history. A name that
+    // isn't a team's goes to the table of all teams.
+    var tm = /^team\/([^/]*)(?:\/(history))?\/?$/.exec(hash), ti = null;
     if (tm) { try { ti = slugs().at[decodeURIComponent(tm[1]).toLowerCase()]; } catch (e) {} p = ti == null ? 'rankings' : 'team'; }
     else if (!PAGES[p] || p === 'team') p = 'scoreboard'; // Scores is the landing view
+    st.teamView = tm && tm[2] ? 'history' : 'season';
     var team = p === 'team' ? D.teams[ti] : null;
     if (team) st.team = team.id;
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
@@ -1229,11 +1249,19 @@
       if (a.dataset.page === (team ? 'rankings' : p)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     // Each view gets its own title and intro.
-    document.title = team ? team.name + ' playoff odds · Playoff Odds Board' : PAGES[p];
-    $('page-title').textContent = team ? team.name + ' playoff odds' : INTRO[p][0];
-    if (team) renderTeam();
-    // A team page ends with that team's all-time Elo history; its data loads the first time a team page opens.
-    if (team && window.EloHistory) {
+    var hist = !!team && st.teamView === 'history';
+    document.title = team ? team.name + (hist ? ' history' : ' playoff odds') + ' · Playoff Odds Board' : PAGES[p];
+    $('page-title').textContent = team ? team.name + (hist ? ' history' : ' playoff odds') : INTRO[p][0];
+    if (team) {
+      // The two views of a team, as buttons at the top of its page. The ratings menu only matters for this season.
+      var href = teamHref(ti), view = function (v, label, to) { return '<a href="' + to + '"' + (st.teamView === v ? ' aria-current="page"' : '') + '>' + label + '</a>'; };
+      $('tp-views').innerHTML = view('season', 'This season', href) + view('history', 'History', href + '/history');
+      $('mode-team-ctl').hidden = hist;
+      if (!hist) $('team-history-wrap').hidden = true;
+      renderTeam();
+    }
+    // The History view: the team's all-time Elo history; its data loads the first time one opens.
+    if (hist && window.EloHistory) {
       var ehv = (((document.querySelector('script[src*="js/app.js"]') || {}).src || '').split('?v=')[1] || D.asOf);
       EloHistory.show({ root: 'team-history', wrap: 'team-history-wrap', side: 'tp-hist-side', team: team.id, file: 'cfb-elo.json?v=' + encodeURIComponent(ehv), detail: 'elo/cfb/', ver: ehv, noun: 'FBS' });
     }

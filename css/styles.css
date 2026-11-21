@@ -1034,6 +1034,11 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-back { display: inline-flex; align-items: center; min-height: 40px; color: var(--ink); font: 600 var(--text-sm)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
 .tp-back::before { content: "\2039"; margin-right: 6px; font-size: 1.5em; line-height: .8; }
 .tp-back:hover { color: var(--accent); }
+/* This season / History: the team page's two views, styled like the other segmented buttons. */
+.tp-views a { display: inline-flex; align-items: center; min-height: 38px; padding: 0 var(--s3); border-right: 1px solid var(--line); color: var(--muted); font: 600 var(--text-sm) var(--body); text-decoration: none; white-space: nowrap; }
+.tp-views a:last-child { border-right: 0; }
+.tp-views a:hover { color: var(--ink); }
+.tp-views a[aria-current="page"] { background: var(--accent); color: var(--panel); }
 .tp { display: grid; gap: var(--s5); }
 .tp > *, .tp-grid > * { min-width: 0; }
 /* The head: logo and name, then the résumé's six tiles. They sit under the name on phones (three across) and
@@ -1067,6 +1072,27 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .pick-opt[aria-selected="true"] { font-weight: 700; box-shadow: inset 3px 0 0 var(--accent); }
 .pick-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; }
 .tp-head p .conf-logo { margin: -3px 5px 0 0; }
+/* The record and poll places under the team name: the largest numbers on the page after the name. */
+.tp-standing { display: flex; flex-wrap: wrap; gap: var(--s2) 0; margin: var(--s4) 0 0; }
+.tp-standing > div { padding: 0 var(--s5); border-left: 1px solid var(--line); }
+.tp-standing > div:first-child { padding-left: 0; border-left: 0; }
+.tp-standing dt { font: 600 var(--text-xs)/1.2 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.tp-standing dt abbr[title] { text-decoration: none; cursor: help; }
+.tp-standing dd { display: flex; align-items: baseline; gap: 6px; margin: 4px 0 0; font: 700 var(--text-2xl)/1 var(--display); color: var(--ink); white-space: nowrap; }
+.tp-standing dd small { font: 500 var(--text-sm)/1 var(--body); color: var(--muted); }
+.tp-standing dd small.mv { font: 700 var(--text-xs)/1 var(--display); }
+.tp-standing .mv.up { color: var(--up); } .tp-standing .mv.down { color: var(--down); }
+.tp-standing .tp-hash { margin-right: 1px; font-size: .6em; color: var(--muted); }
+.tp-standing .tp-nr { color: var(--muted); }
+/* Phones: the logo sits beside the name and conference, and the record and polls take their own full-width row. */
+@media (max-width: 599px) {
+  .tp-id { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s3); align-items: center; }
+  .tp-id > .logo { grid-row: span 2; width: 48px; height: 48px; }
+  .tp-name { display: contents; }
+  .tp-standing { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tp-standing > div { padding: 0 0 0 var(--s3); }
+  .tp-standing dd { font-size: var(--text-xl); }
+}
 .tp-card h3 { --lh: 18px; }
 .tp-card h3 .conf-logo { margin: -5px 6px -3px 0; }
 .tp-resume { flex: 1 1 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
@@ -1199,6 +1225,7 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .lg-team a.tlink:hover { color: var(--accent); text-decoration: none; }
 /* The team page's history section sits under the three columns, full width. */
 .tp-history { margin-top: var(--s4); }
+#page-team .tp-head + .tp-history, #team-page:has(> .tp-head:only-child) + .tp-history { margin-top: 0; }
 @media (min-width: 900px) {
   .tp-head { padding: var(--s5) var(--s5) var(--s4); }
 }

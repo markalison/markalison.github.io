@@ -120,8 +120,13 @@ var CFP = (function () {
     var cfp = rankings && rankings.filter(function (r) { return r.type === 'cfp'; })[0];
     if (cfp) {
       rankDate = cfp.date;
-      cfp.ranks.forEach(function (r) { var i = byId[r.team.id]; if (i != null) teams[i].rank = r.current; });
+      cfp.ranks.forEach(function (r) { var i = byId[r.team.id]; if (i != null) { teams[i].rank = r.current; if (r.previous) teams[i].rankPrev = r.previous; } });
     }
+    // The AP and Coaches polls, for the team pages: { r: this week's place, p: last week's (0 if unranked) }.
+    [['ap', 'ap'], ['usa', 'coach']].forEach(function (k) {
+      var poll = rankings && rankings.filter(function (r) { return r.type === k[0]; })[0];
+      if (poll) poll.ranks.forEach(function (r) { var i = byId[r.team.id]; if (i != null && r.current) teams[i][k[1]] = { r: r.current, p: r.previous || 0 }; });
+    });
     return { teams: teams, fbs: fbsCount, games: games, titles: titles, rankDate: rankDate, rankLabel: cfp ? cfp.headline : null, hasCfp: !!cfp };
   }
 

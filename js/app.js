@@ -514,7 +514,6 @@
     return '<dl class="rs-tiles tp-resume">' +
       tile('SOR', 'Strength of record: how hard this record would be for a top-25 team to match against this schedule, ranked among ' + all.n.sor + ' FBS teams (1st = hardest)', r.sorRank ? ordinal(r.sorRank) : '—') +
       tile('SOS', 'Strength of schedule: average rating of opponents played, ranked among ' + all.n.sos + ' FBS teams (1st = toughest)' + (r.nLeft ? '; schedule left ranks ' + ordinal(r.sosLeftRank) : ''), r.sosRank ? ordinal(r.sosRank) : '—') +
-      tile('Win out', 'Chance to win every regular-season game left (' + r.nLeft + ')', r.winOut == null ? '—' : pct(r.winOut)) +
       tile('vs top 25', 'Record against teams in the current CFP top 25', r.top25) +
       tile('Best win', 'Toughest team beaten (by the selected ratings, road wins counting a bit more); wins within ' + CLOSE + ' points of it, or over a team ranked at least as high in the CFP, show too. Wins over unranked teams count only for a team with no top-25 wins', opp(r.best)) +
       tile('Worst loss', 'Lowest-rated team lost to (by the selected ratings); losses within ' + CLOSE + ' points of it show too', opp(r.worst)) +
@@ -575,8 +574,9 @@
   }
   // The head of the page: who the team is (logo, full name, CFP rank, conference with its logo, and record) and
   // its résumé.
-  // Under the name, its conference; then the numbers that matter most at a glance, large: the record and the
-  // team's place in the CFP ranking and the AP and Coaches polls, each with its move since last week.
+  // The name with its conference under it; across from it, large, the record, conference record and the team's
+  // place in the CFP ranking and the AP and Coaches polls, each with its move since last week. The résumé runs
+  // along the bottom.
   function teamHead(x) {
     var t = x.t, rec = x.rec, ind = t.conf === 'ind', conf = CFP.CONF_NAME[t.conf] || t.conf;
     function move(now, prev) {
@@ -588,17 +588,18 @@
       return has ? '<div><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + v + '</dd></div>' : '';
     }
     var stand = '<dl class="tp-standing">' +
-      '<div class="tp-rec"><dt>Record</dt><dd>' + rec.text + (ind ? '' : '<small>' + rec.cw + '-' + rec.cl + ' ' + esc(CFP.CONF_ABBR[t.conf] || conf) + '</small>') + '</dd></div>' +
+      '<div class="tp-rec"><dt>Record</dt><dd>' + rec.text + '</dd></div>' +
+      (ind ? '' : '<div><dt><abbr title="' + esc(conf) + ' record">Conf.</abbr></dt><dd>' + rec.cw + '-' + rec.cl + '</dd></div>') +
       poll('CFP', 'College Football Playoff committee ranking', t.rank, t.rankPrev || (t.rank ? t.rank : 0), D.hasCfp) +
       poll('AP', 'AP Top 25 poll', t.ap && t.ap.r, t.ap && t.ap.p, true) +
       poll('Coaches', 'AFCA Coaches Poll', t.coach && t.coach.r, t.coach && t.coach.p, true) +
     '</dl>';
     return '<div class="tp-head"' + (t.color && /^[0-9a-f]{6}$/i.test(t.color) ? ' style="--tc:#' + t.color + '"' : '') + '><div class="tp-id">' + logo(t, 64) +
-      '<div class="tp-name"><h2>' + esc(t.full || t.name) + '</h2><p>' + confLogo(t.conf) + esc(conf) + '</p>' + stand + '</div></div>' + resumeBlock(x) + '</div>';
+      '<div class="tp-name"><h2>' + esc(t.full || t.name) + '</h2><p>' + confLogo(t.conf) + esc(conf) + '</p></div></div>' + stand + resumeBlock(x) + '</div>';
   }
   // The headline odds, as tiles shaded like the table's cells. An independent has no conference to win.
   function teamOdds(x) {
-    var r = x.r, ind = x.t.conf === 'ind';
+    var r = x.r, ind = x.t.conf === 'ind', rs = resumes().teams[x.i];
     function tile(label, title, v, text) {
       // A chance shades its cell green by its value, like the table's cells; a number that isn't one (Avg seed) doesn't.
       return '<div' + (v == null ? '' : ' style="--p:' + v.toFixed(3) + '"') + '><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + (text != null ? text : pct(v)) + '</dd></div>';
@@ -609,6 +610,7 @@
       tile('Make conf. championship', 'Chance to play in the conference championship game', ind ? null : r.ccg, ind ? '\u2014' : null) +
       tile('Win conference', 'Chance to win the conference championship', ind ? null : r.champ, ind ? '\u2014' : null) +
       tile('Win title', 'Chance to win the national championship', r.title) +
+      tile('Win out', 'Chance to win every regular-season game left (' + rs.nLeft + ')', rs.winOut, rs.winOut == null ? '\u2014' : null) +
       tile('Avg seed', 'Average playoff seed in the simulations where they make the CFP', null, r.seed ? r.seed.toFixed(1) : '\u2014') +
     '</dl>';
   }

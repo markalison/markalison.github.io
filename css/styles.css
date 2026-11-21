@@ -1073,7 +1073,7 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .pick-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; }
 .tp-head p .conf-logo { margin: -3px 5px 0 0; }
 /* The record and poll places under the team name: the largest numbers on the page after the name. */
-.tp-standing { display: flex; flex-wrap: wrap; gap: var(--s2) 0; margin: var(--s4) 0 0; }
+.tp-standing { display: flex; flex-wrap: wrap; gap: var(--s2) 0; margin: 0; }
 .tp-standing > div { padding: 0 var(--s5); border-left: 1px solid var(--line); }
 .tp-standing > div:first-child { padding-left: 0; border-left: 0; }
 .tp-standing dt { font: 600 var(--text-xs)/1.2 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
@@ -1084,18 +1084,19 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-standing .mv.up { color: var(--up); } .tp-standing .mv.down { color: var(--down); }
 .tp-standing .tp-hash { margin-right: 1px; font-size: .6em; color: var(--muted); }
 .tp-standing .tp-nr { color: var(--muted); }
-/* Phones: the logo sits beside the name and conference, and the record and polls take their own full-width row. */
+/* Phones: a smaller logo, and the record and polls take a full-width row of equal columns under the name. */
 @media (max-width: 599px) {
-  .tp-id { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s3); align-items: center; }
-  .tp-id > .logo { grid-row: span 2; width: 48px; height: 48px; }
-  .tp-name { display: contents; }
-  .tp-standing { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tp-id > .logo { width: 48px; height: 48px; }
+  .tp-standing { flex: 1 1 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
   .tp-standing > div { padding: 0 0 0 var(--s3); }
   .tp-standing dd { font-size: var(--text-xl); }
 }
+/* The résumé along the bottom of the header, under a rule. */
+.tp-resume { padding-top: var(--s4); border-top: 1px solid var(--line); }
 .tp-card h3 { --lh: 18px; }
 .tp-card h3 .conf-logo { margin: -5px 6px -3px 0; }
 .tp-resume { flex: 1 1 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.tp-odds > div:first-child { grid-column: 1 / -1; }
 .tp-picks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); font-size: var(--text-sm); color: var(--muted); }
 .tp-picks b { color: var(--ink); font-weight: 600; }
 /* Headline odds: tiles shaded by their value, like the table's cells. */
@@ -1165,7 +1166,7 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
   .tg-tv { display: inline-flex; }
 }
 @media (min-width: 600px) {
-  .tp-odds, .tp-resume { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tp-resume { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 @media (min-width: 900px) {
   .tp-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
@@ -1179,7 +1180,11 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 @media (min-width: 900px) {
   .tp-head h2 { font-size: var(--text-2xl); }
   .tp-id { flex: 0 1 auto; }
-  .tp-resume { flex: none; grid-template-columns: repeat(6, auto); column-gap: var(--s5); }
+  .tp-resume { grid-template-columns: repeat(5, auto); justify-content: start; column-gap: var(--s7, 40px); }
+}
+@media (min-width: 1100px) {
+  .tp-odds { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .tp-odds > div:first-child { grid-column: auto; }
 }
 
 /* ---------- Team page finish ----------

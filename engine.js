@@ -103,10 +103,13 @@ var CFP = (function () {
           g.hs = +hc.score; g.as = +ac.score;
           g.w = (hc.winner === true || (hc.winner !== false && g.hs > g.as)) ? h : a;
         } else if (state === 'in') {
-          // Share of regulation left: 4 quarters of 900 seconds. Overtime counts as a sliver.
+          // Share of regulation left: 4 quarters of 900 seconds.
+          // Overtime: both teams get the ball, so a lead after one possession isn't banked. Treat it as about
+          // one possession of randomness left (a quarter of a game's) with half the lead counting (g.ot).
           var es = ev.status || {}, per = +es.period || 1, clk = es.clock == null ? 900 : +es.clock;
           g.hs = +hc.score || 0; g.as = +ac.score || 0;
-          g.frac = per > 4 ? 0.03 : Math.min(1, Math.max(0.003, ((4 - per) * 900 + clk) / 3600));
+          if (per > 4) { g.ot = 1; g.frac = 0.25; }
+          else g.frac = Math.min(1, Math.max(0.003, ((4 - per) * 900 + clk) / 3600));
           g.st = st.shortDetail || st.detail || '';
         }
         games.push(g);
@@ -264,7 +267,7 @@ var CFP = (function () {
       } else {
         var k = todoH.length, sp = R[g.h] - R[g.a] + (g.n ? 0 : hfa);
         todoH.push(g.h); todoA.push(g.a); todoS.push(sp); todoP.push(phi(sp / total)); todoC.push(g.c); gameIdx.push(g.id);
-        var f = g.s === 'in' ? g.frac : 1, cur = g.s === 'in' ? g.hs - g.as : 0;
+        var f = g.s === 'in' ? g.frac : 1, cur = g.s === 'in' ? (g.hs - g.as) * (g.ot ? 0.5 : 1) : 0;
         todoCur.push(cur); todoF.push(f);
         var pk = picks ? picks[g.id] : null;
         todoLock.push(pk == null ? -1 : T[g.h].id === pk ? g.h : T[g.a].id === pk ? g.a : -1);

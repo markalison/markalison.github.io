@@ -1,7 +1,8 @@
-// The History tab: every team's Elo rating after each game, drawn as one line per team with the chosen team
-// (and an optional second one) in colour. Data loads the first time the tab opens.
-// Usage: EloHistory.show({ root, file, detail, noun }) where file is the packed ratings and detail the folder of
-// per-team game files.
+// A team's all-time Elo history, at the bottom of its team page: its rating after each game, coach eras,
+// championships and year-by-year results. Data loads the first time a team page opens.
+// Usage: EloHistory.show({ root, wrap, side, team, file, detail, noun }) where team is the ESPN team id, wrap the
+// section to hide for a team with no history, side the heading's corner, file the packed ratings and detail the
+// folder of per-team game files.
 window.EloHistory = (function () {
   'use strict';
   var cfg = null, H = null, st = { a: null, b: null, range: 'all', hover: null, hoverK: null, cf: 'all', coach: -1, zoom: null, hoverEra: null }, details = {}, staff = {}, crowns = {}, els = {}, G = {}, raf = 0;
@@ -86,7 +87,6 @@ window.EloHistory = (function () {
   function build(root) {
     root.innerHTML =
       '<div class="eh-controls">' +
-        '<div class="ctl"><label for="eh-team">Team</label><select id="eh-team"></select></div>' +
         '<div class="ctl" id="eh-coach-ctl" hidden><label for="eh-coach">Coach</label><div class="eh-step">' +
           '<button type="button" class="btn eh-step-b" data-ehstep="-1" aria-label="Earlier coach" title="Earlier coach">\u2039</button><select id="eh-coach"></select>' +
           '<button type="button" class="btn eh-step-b" data-ehstep="1" aria-label="Later coach" title="Later coach">\u203a</button></div></div>' +
@@ -99,11 +99,6 @@ window.EloHistory = (function () {
       '<p class="eh-method" id="eh-method"></p>';
     ['team', 'coach', 'plot', 'base', 'top', 'tip', 'story', 'method', 'cl', 'log'].forEach(function (k) { els[k] = document.getElementById('eh-' + k); });
     els.coachWrap = document.getElementById('eh-coach-ctl');
-    var opts = function (list) { return list.map(function (t) { return '<option value="' + t.i + '">' + esc(t.n) + '</option>'; }).join(''); };
-    var cur = H.teams.filter(function (t) { return t.now; }), old = H.teams.filter(function (t) { return !t.now; });
-    var groups = '<optgroup label="Current ' + esc(cfg.noun) + ' teams">' + opts(cur) + '</optgroup><optgroup label="Former major teams">' + opts(old) + '</optgroup>';
-    els.team.innerHTML = groups;
-    els.team.addEventListener('change', function () { select(+els.team.value); });
     root.addEventListener('change', function (e) {
       if (e.target.id === 'eh-org') { st.cf = e.target.value; renderSide(); drawTop(); var o = document.getElementById('eh-org'); if (o) o.focus(); }
       if (e.target.id === 'eh-coach') pickCoach(+e.target.value);
@@ -111,7 +106,6 @@ window.EloHistory = (function () {
     root.addEventListener('click', function (e) {
       var b = e.target.closest('button');
       if (!b) return;
-      if (b.dataset.ehteam) { select(+b.dataset.ehteam); els.plot.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       if (b.dataset.ehstep) stepCoach(+b.dataset.ehstep);
       if (b.dataset.ehcoach) {
         pickCoach(+b.dataset.ehcoach);
@@ -132,7 +126,6 @@ window.EloHistory = (function () {
   }
   function select(i) { st.a = i; if (st.b === i) st.b = null; st.cf = 'all'; st.coach = -1; st.zoom = null; sync(); }
   function sync() {
-    els.team.value = st.a;
     loadDetail(st.a);
     drawAll(); renderSide(); renderChartLegend(); renderLog(); renderCoach();
   }
@@ -548,15 +541,27 @@ window.EloHistory = (function () {
   }
 
   // ---------- entry ----------
+  // Shows the chosen team: hides the section for a team with no history, and names its years in the heading.
+  function showTeam() {
+    var i = -1;
+    for (var k = 0; k < H.teams.length; k++) if (String(H.teams[k].id) === String(cfg.team)) { i = k; break; }
+    var wrap = cfg.wrap && document.getElementById(cfg.wrap), side = cfg.side && document.getElementById(cfg.side);
+    if (wrap) wrap.hidden = i < 0;
+    if (i < 0) return;
+    var t = H.teams[i];
+    if (side) side.textContent = t.y[0] + '\u2013' + t.y[t.y.length - 1] + (t.titles.length ? ' \u00b7 ' + t.titles.length + ' national title' + (t.titles.length === 1 ? '' : 's') : '');
+    if (i !== st.a || !els.plot) select(i); else drawAll();
+  }
   function show(c) {
     cfg = c;
-    var root = document.getElementById(c.root);
-    if (H) { drawAll(); return; }
+    var root = document.getElementById(c.root), wrap = c.wrap && document.getElementById(c.wrap);
+    if (H) { showTeam(); return; }
+    if (wrap) wrap.hidden = false;
     if (root.dataset.loading) return;
     root.dataset.loading = '1';
-    root.innerHTML = '<p class="eh-hint">Loading ' + esc(c.noun) + ' history…</p>';
+    root.innerHTML = '<p class="eh-hint">Loading history…</p>';
     fetch(c.file).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (raw) {
-      prepare(raw); build(root); sync();
+      prepare(raw); build(root); showTeam();
     }).catch(function () { delete root.dataset.loading; root.innerHTML = '<p class="eh-hint">Couldn’t load the history. Reload the page to try again.</p>'; });
   }
   return { show: show };

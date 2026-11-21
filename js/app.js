@@ -222,7 +222,7 @@
       th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
       th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
-      '<th class="pick c-pick" title="Each team’s game in week ' + weekGames().wk + '">Wk ' + weekGames().wk + '</th>' +
+      '<th class="pick c-pick" title="Each team’s game in week ' + tableWeek() + ': a pick box until it ends, then the result">Wk ' + tableWeek() + '</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
       th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
@@ -307,6 +307,30 @@
       stat('Rating', x.rating.toFixed(1)) +
     '</dl>';
   }
+  // The table's week column: the current week until every game in it is final, then the next week with games,
+  // so picks open for next week once this one is done.
+  function tableWeek() {
+    var wk = weekGames().wk, all = D.games.filter(function (g) { return g.wk === wk; });
+    if (all.length && all.every(function (g) { return sbStat(g) === 'post'; })) {
+      var later = D.games.filter(function (g) { return g.wk != null && g.wk > wk; }).map(function (g) { return g.wk; });
+      if (later.length) wk = Math.min.apply(null, later);
+    }
+    return wk;
+  }
+  // Each team's game in that week: a W/L pick box until the game ends, then its result and score. A team
+  // with no game that week (a bye) gets a blank cell.
+  function weekCell(x) {
+    var g = weekGame(x, tableWeek());
+    if (!g) return '';
+    var home = g.h === x.i, opp = D.teams[home ? g.a : g.h], vs = (home || g.n ? 'vs ' : '@') + esc(opp.ab || opp.name);
+    if (sbStat(g) === 'post') {
+      var mine = home ? g.hs : g.as, theirs = home ? g.as : g.hs;
+      if (mine == null || theirs == null || mine === theirs) return '<div class="nx-cell"><span class="nx-res">—</span><span class="nx-vs">' + vs + '</span></div>';
+      var won = mine > theirs, label = x.t.name + (won ? ' beat ' : ' lost to ') + opp.name + ' ' + mine + '–' + theirs;
+      return '<div class="nx-cell" title="' + esc(label) + '"><span class="nx-res" aria-label="' + esc(label) + '"><b class="res ' + (won ? 'res-w' : 'res-l') + '">' + (won ? 'W' : 'L') + '</b>' + mine + '–' + theirs + '</span><span class="nx-vs" aria-hidden="true">' + vs + '</span></div>';
+    }
+    return pickBox(x, g);
+  }
   // The Next column: the week after This week. It names the opponent and has a W/L box for that game.
   // A team with no game that week (a bye) gets a blank cell. After the regular season's last
   // week it falls back to the team's next scheduled game (a title game), or a dash.
@@ -327,6 +351,9 @@
     var g = nextWeekGame(x);
     if (g === 'bye') return ''; // a bye week leaves Next blank
     if (!g || g.s === 'post') return '\u2014';
+    return pickBox(x, g);
+  }
+  function pickBox(x, g) {
     var opp = D.teams[g.h === x.i ? g.a : g.h], vs = matchup(g, x.i);
     var pk = st.picks[g.id], won = pk === x.t.id, lost = !!pk && !won;
     var label = won ? x.t.name + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + ' ' + vs + '. Press to pick a win';
@@ -668,7 +695,7 @@
         '<td class="l c-cn-cell"><span class="cn-long">' + esc(CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span></td>' +
         '<td class="num rec">' + x.rec.text + '</td>' +
         '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
-        '<td class="pick">' + pickCell(x) + '</td>' +
+        '<td class="pick">' + weekCell(x) + '</td>' +
         '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +
         shaded(x.r.bye) +
         (x.t.conf === 'ind' ? '<td class="sec">—</td>' : shaded(x.r.champ)) + shaded(x.r.title) + '</tr>';
@@ -925,7 +952,8 @@
       else if (nx && nx.id === g.id) win = Math.round(nx.p * 100) + '%';
       else win = '—';
     }
-    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + (t.rank ? '<small class="lg-rank">' + t.rank + '</small>' : '') + esc(t.ab || t.name) + (isFbs ? ' <small class="lg-rec">(' + record(i).text + ')</small>' : '') + '</span></div>';
+    // An FBS team's name links to its team page.
+    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + teamLink(i, (t.rank ? '<small class="lg-rank">' + t.rank + '</small>' : '') + esc(t.ab || t.name)) + (isFbs ? ' <small class="lg-rec">(' + record(i).text + ')</small>' : '') + '</span></div>';
     // Upcoming games: no score; Make CFP odds if this team wins or loses it. A picked game has one outcome left.
     if (g.s === 'pre') {
       var ifW = null, ifL = null;
@@ -1178,15 +1206,14 @@
         '<p class="live-empty">No ' + who + 'games this week.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
-  var PAGES = { rankings: 'Playoff Odds Board', playoff: 'Playoff bracket · Playoff Odds Board', scoreboard: 'Scores · Playoff Odds Board', history: 'College football Elo history · Playoff Odds Board', team: 'Team · Playoff Odds Board' };
+  var PAGES = { rankings: 'Playoff Odds Board', playoff: 'Playoff bracket · Playoff Odds Board', scoreboard: 'Scores · Playoff Odds Board', team: 'Team · Playoff Odds Board' };
   var INTRO = {
     rankings: ['College Football Playoff odds', 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.'],
     playoff: ['Projected playoff', 'The most likely 12-team field in its bracket. Simulate the games to see who’s favored in each round.'],
     scoreboard: ['Scores', 'Today\u2019s games, with each team\u2019s win chance and what the result means for its playoff odds.'],
-    history: ['College football Elo history', 'Every major-college team\u2019s Elo rating after each game since 1869.'],
     team: ['Team', 'One team\u2019s schedule, scores and playoff odds.']
   };
-  var OLD_HASH = { odds: 'rankings', live: 'scoreboard', scores: 'scoreboard' }; // names used by earlier versions of the site
+  var OLD_HASH = { odds: 'rankings', live: 'scoreboard', scores: 'scoreboard', history: 'rankings' }; // names used by earlier versions of the site
   function showPage() {
     var hash = location.hash.replace('#', ''), p = OLD_HASH[hash] || hash;
     if (hash === 'about') { location.replace('about.html'); return hash; } // older links
@@ -1205,8 +1232,11 @@
     document.title = team ? team.name + ' playoff odds · Playoff Odds Board' : PAGES[p];
     $('page-title').textContent = team ? team.name + ' playoff odds' : INTRO[p][0];
     if (team) renderTeam();
-    // The history loads its data the first time its tab opens.
-    if (p === 'history' && window.EloHistory) var ehv = (((document.querySelector('script[src*="js/app.js"]') || {}).src || '').split('?v=')[1] || D.asOf); EloHistory.show({ root: 'elo-history', file: 'cfb-elo.json?v=' + encodeURIComponent(ehv), detail: 'elo/cfb/', ver: ehv, noun: 'FBS' });
+    // A team page ends with that team's all-time Elo history; its data loads the first time a team page opens.
+    if (team && window.EloHistory) {
+      var ehv = (((document.querySelector('script[src*="js/app.js"]') || {}).src || '').split('?v=')[1] || D.asOf);
+      EloHistory.show({ root: 'team-history', wrap: 'team-history-wrap', side: 'tp-hist-side', team: team.id, file: 'cfb-elo.json?v=' + encodeURIComponent(ehv), detail: 'elo/cfb/', ver: ehv, noun: 'FBS' });
+    }
     return hash;
   }
   window.addEventListener('hashchange', function () {
@@ -1227,7 +1257,7 @@
     var n = Object.keys(st.picks).length;
     $('picks-bar').innerHTML = n
       ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.' + rkNote() + '</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
-      : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.' + rkNote() + '</span>';
+      : '<span>Press a team\u2019s box to cycle its game this week through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update. Finished games show the result.' + rkNote() + '</span>';
   }
   function renderAll() { renderPicksBar(); renderStatus(); renderLive(); renderField(); renderBracket(); renderTable(); renderTeam(); }
 

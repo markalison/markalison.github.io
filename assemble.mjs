@@ -122,8 +122,7 @@ const header = (page) => {
     <nav class="tabs" aria-label="${pro ? cur.name : 'College football'} views">
       <a href="${base}#rankings" data-page="rankings">${pro ? 'Standings' : 'Rankings'}</a>
       <a href="${base}#playoff" data-page="playoff">Bracket</a>
-      <a href="${base}#scores" data-page="scoreboard">Scores</a>${pro ? '' : `
-      <a href="${base}#history" data-page="history">History</a>`}
+      <a href="${base}#scores" data-page="scoreboard">Scores</a>
     </nav>
     <a class="brand" href="./" aria-label="Playoff Odds Board, home">${MARK('brand-mark')}<span class="brand-name">Playoff Odds <span>Board</span></span></a>
   </div>

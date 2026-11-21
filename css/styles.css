@@ -251,6 +251,8 @@ th.pick, td.pick { text-align: center; }
 @media (max-width: 899px) { .odds-table:not(.expanded) .nx-long { display: none; } .odds-table:not(.expanded) .nx-short { display: inline; } }
 /* Next column: the W/L box with next week's opponent under it. */
 .nx-cell { display: inline-grid; justify-items: center; gap: 2px; max-width: 100%; }
+/* A finished game in the table's week column: W or L and the score, the height of a pick box. */
+.nx-res { display: flex; align-items: center; justify-content: center; gap: 3px; height: 28px; font: 600 var(--text-sm)/1 var(--display); white-space: nowrap; }
 .nx-vs { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.1; color: var(--muted); }
 .empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }
 /* Phones: Show all columns brings back the full table. It scrolls sideways with CFP and Team pinned. */
@@ -1194,6 +1196,9 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-games .res { display: inline-block; width: 1.1em; text-align: center; }
 .tp-stand td.st-low { color: var(--muted); }
 .tp-table a.tlink:hover { color: var(--accent); text-decoration: none; }
+.lg-team a.tlink:hover { color: var(--accent); text-decoration: none; }
+/* The team page's history section sits under the three columns, full width. */
+.tp-history { margin-top: var(--s4); }
 @media (min-width: 900px) {
   .tp-head { padding: var(--s5) var(--s5) var(--s4); }
 }

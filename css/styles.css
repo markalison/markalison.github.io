@@ -375,6 +375,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 /* Between the day or week strip and the games: the Sort by toggle on the left and, on college football,
    Conference on the right. */
 .sb-bar { justify-content: space-between; }
+.sb-bar .sb-sort { margin-left: auto; } /* sort sits at the right, even when it is the only control showing */
 /* A two-way toggle, the height of a dropdown: the pressed side is filled. */
 .seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .seg button { min-height: 38px; padding: 0 var(--s3); border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 var(--text-sm) var(--body); white-space: nowrap; cursor: pointer; }

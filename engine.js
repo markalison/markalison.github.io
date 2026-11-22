@@ -240,6 +240,282 @@ var CFP = (function () {
     return out;
   }
 
+  // ---------- Conference title game tiebreakers ----------
+  // Each conference's own published procedure for picking its two title-game teams. Sources (2026 season):
+  // ACC policy as amended July 1, 2026; Big 12 tiebreaking procedures (2024, unchanged since); Big Ten 2024
+  // procedures (carried forward); SEC tie-breaking process of Oct 29, 2024 (carried forward); Pac-12 release of
+  // Sept 3, 2026; American 2025 handbook section 10; Conference USA football regulations; MAC championship
+  // tiebreaker; Mountain West 2025 procedures; Sun Belt divisional procedures (2026 members).
+  // Inputs the conferences take from outside the results (SportSource ratings, the composite of computer
+  // rankings, the scoring-margin formula) are stood in for by the simulation's own numbers: ctx.metric (our
+  // committee-style résumé score) and ctx.rating (team strength). Coin tosses and draws use ctx.rand.
+  //
+  // ctx (indices are team numbers):
+  //   cw(t), cl(t)  conference wins and losses     ch(a, b)  conference wins of a over b
+  //   w(t), l(t)    all wins and losses            fcsW(t)   wins over teams below FBS
+  //   metric(t), rating(t)  higher is better       rank(t)   CFP rank entering the final week (0 unranked)
+  //   lostFinal(t)  lost its final conference game  rand()   uniform [0, 1)
+  //   div(t)        division name (Sun Belt)
+  var TB = (function () {
+    function pct(w, l) { return w + l ? w / (w + l) : 0; }
+    function confPct(ctx, t) { return pct(ctx.cw(t), ctx.cl(t)); }
+    function games(ctx, a, b) { return ctx.ch(a, b) + ctx.ch(b, a); }
+    function without(list, out) { return list.filter(function (t) { return out.indexOf(t) < 0; }); }
+    function vals(G, f) { return { v: G.map(f) }; }
+
+    // ----- steps: each looks at the tied group G and returns null (no help), { v: [value per team] } (higher
+    // is better), { adv: t } (t takes a berth and the rest start over) or { out: [teams] } (removed from the tie).
+    // Head-to-head: the record in games among the tied teams. o.full: count it only if every tied team played
+    // every other; o.beat: if not, a team that beat each of the others advances; o.lost: and one that lost to
+    // each of the others is removed. o.any: use the record among the tied teams whoever played (Sun Belt).
+    function h2h(o) {
+      o = o || {};
+      return function (G, ctx) {
+        var all = true, i, j;
+        for (i = 0; i < G.length; i++) for (j = i + 1; j < G.length; j++) if (!games(ctx, G[i], G[j])) all = false;
+        if (all || o.any || G.length === 2) {
+          return vals(G, function (a) {
+            var w = 0, l = 0;
+            G.forEach(function (b) { if (b !== a) { w += ctx.ch(a, b); l += ctx.ch(b, a); } });
+            return w + l ? w / (w + l) : 0.5;
+          });
+        }
+        if (o.beat) {
+          for (i = 0; i < G.length; i++) {
+            var a = G[i];
+            if (G.every(function (b) { return b === a || (ctx.ch(a, b) > 0 && ctx.ch(b, a) === 0); })) return { adv: a };
+          }
+        }
+        if (o.lost) {
+          var out = G.filter(function (a) { return G.every(function (b) { return b === a || (ctx.ch(b, a) > 0 && ctx.ch(a, b) === 0); }); });
+          if (out.length && out.length < G.length) return { out: out };
+        }
+        return null;
+      };
+    }
+    // Record against the conference opponents every tied team played (the tied teams themselves left out).
+    function common(o) {
+      o = o || {};
+      return function (G, ctx, members) {
+        var pool = members.filter(function (s) {
+          if (G.indexOf(s) >= 0) return false;
+          if (o.nonDiv && ctx.div(s) === ctx.div(G[0])) return false;
+          return G.every(function (t) { return games(ctx, t, s) > 0; });
+        });
+        if (!pool.length) return null;
+        return vals(G, function (t) {
+          var w = 0, l = 0;
+          pool.forEach(function (s) { w += ctx.ch(t, s); l += ctx.ch(s, t); });
+          return pct(w, l);
+        });
+      };
+    }
+    // Record against the next-best common opponent, working down the standings. Teams level in the standings
+    // count as one group: each tied team's record against that group. o.all: every tied team must have played
+    // every team in the group (Mountain West), otherwise the group is skipped; by default the group is narrowed
+    // to the teams all the tied teams played. o.div: the divisional standings (Sun Belt).
+    function ordered(o) {
+      o = o || {};
+      return function (G, ctx, members) {
+        var rest = members.filter(function (s) { return G.indexOf(s) < 0 && (!o.div || ctx.div(s) === ctx.div(G[0])); });
+        var key = function (s) { return confPct(ctx, s); };
+        rest.sort(function (a, b) { return key(b) - key(a); });
+        for (var i = 0; i < rest.length;) {
+          var level = [rest[i]], k = key(rest[i]), j = i + 1;
+          while (j < rest.length && Math.abs(key(rest[j]) - k) < 1e-9) level.push(rest[j++]);
+          i = j;
+          var faced = level.filter(function (s) { return G.every(function (t) { return games(ctx, t, s) > 0; }); });
+          if (o.all ? faced.length < level.length : !faced.length) continue;
+          var r = G.map(function (t) { var w = 0, l = 0; faced.forEach(function (s) { w += ctx.ch(t, s); l += ctx.ch(s, t); }); return pct(w, l); });
+          if (r.some(function (x) { return Math.abs(x - r[0]) > 1e-9; })) return { v: r };
+        }
+        return null;
+      };
+    }
+    // Strength of conference schedule. 'sum': all conference opponents' records added together, one per game
+    // played; 'avg': the average of each opponent's conference winning percentage (SEC).
+    function oppPct(mode) {
+      return function (G, ctx, members) {
+        return vals(G, function (t) {
+          var w = 0, l = 0, s = 0, n = 0;
+          members.forEach(function (o) {
+            var g = games(ctx, t, o);
+            if (!g || o === t) return;
+            if (mode === 'avg') { s += confPct(ctx, o); n++; } else { w += g * ctx.cw(o); l += g * ctx.cl(o); }
+          });
+          return mode === 'avg' ? (n ? s / n : 0) : pct(w, l);
+        });
+      };
+    }
+    function divPct(ctx, t, members) {
+      var w = 0, l = 0;
+      members.forEach(function (o) { if (o !== t && ctx.div(o) === ctx.div(t)) { w += ctx.ch(t, o); l += ctx.ch(o, t); } });
+      return pct(w, l);
+    }
+    var divRecord = function (G, ctx, members) { return vals(G, function (t) { return divPct(ctx, t, members); }); };
+    var metric = function (G, ctx) { return vals(G, function (t) { return ctx.metric(t); }); };
+    var rating = function (G, ctx) { return vals(G, function (t) { return ctx.rating(t); }); };
+    var coin = function (G, ctx) { return vals(G, function () { return ctx.rand(); }); };
+    // Total wins, counting at most one win over a team below FBS (Big 12's 12-game season).
+    var totalWins = function (G, ctx) { return vals(G, function (t) { return ctx.w(t) - Math.max(0, ctx.fcsW(t) - 1); }); };
+    function overall(capFcs) {
+      return function (G, ctx) { return vals(G, function (t) { var w = ctx.w(t) - (capFcs ? Math.max(0, ctx.fcsW(t) - 1) : 0); return pct(w, ctx.l(t)); }); };
+    }
+    // CFP ranking: the highest-ranked tied team that didn't lose its final conference game advances; with no
+    // such team (none ranked, or the ranked ones lost), the composite of computer rankings decides.
+    var cfpThenMetric = function (G, ctx) {
+      var ok = G.filter(function (t) { return ctx.rank(t) > 0 && !ctx.lostFinal(t); }).sort(function (a, b) { return ctx.rank(a) - ctx.rank(b); });
+      return ok.length ? { adv: ok[0] } : metric(G, ctx);
+    };
+    // A plain CFP ranking comparison (Pac-12 two-team step): unranked teams are level with each other.
+    var cfpRank = function (G, ctx) { return vals(G, function (t) { return ctx.rank(t) ? 100 - ctx.rank(t) : 0; }); };
+
+    // ----- each conference's two-team and multiple-team orders
+    var RULES = {
+      sec: { two: [h2h(), common(), ordered(), oppPct('avg'), rating, coin],
+        multi: [h2h({ beat: 1, lost: 1 }), common(), ordered(), oppPct('avg'), rating, coin] },
+      big10: { two: [h2h(), common(), ordered(), oppPct('sum'), metric, coin],
+        multi: [h2h({ beat: 1 }), common(), ordered(), oppPct('sum'), metric, coin] },
+      big12: { two: [h2h(), common(), ordered(), oppPct('sum'), totalWins, metric, coin],
+        multi: [h2h({ beat: 1 }), common(), ordered(), oppPct('sum'), totalWins, metric, coin] },
+      acc: { tied: 'acc', two: [h2h(), metric, coin], multi: [h2h({ beat: 1, lost: 1 }), metric, coin] },
+      pac12: { two: [h2h(), ordered(), common(), cfpRank, metric, coin],
+        multi: [h2h(), common(), ordered(), oppPct('sum'), metric, coin] },
+      american: { two: [h2h(), cfpThenMetric, common(), overall(false), coin],
+        multi: [h2h({ beat: 1 }), cfpThenMetric, common(), overall(false), coin] },
+      usa: { two: [h2h(), common(), ordered(), metric, oppPct('sum'), coin],
+        multi: [h2h({ beat: 1 }), common(), ordered(), metric, oppPct('sum'), coin] },
+      midam: { two: [h2h(), oppPct('sum'), metric, coin],
+        multi: [h2h({ beat: 1, lost: 1 }), oppPct('sum'), metric, coin] },
+      mwest: { two: [h2h(), cfpThenMetric, overall(true), ordered({ all: 1 }), common(), coin],
+        multi: [h2h({ beat: 1, lost: 1 }), cfpThenMetric, overall(true), ordered({ all: 1 }), common(), coin] },
+      // Sun Belt division champions: tied teams carry on down the list instead of starting over.
+      belt: { divs: 1, keepGoing: 1,
+        two: [h2h(), divRecord, ordered({ div: 1 }), common({ nonDiv: 1 }), cfpThenMetric, overall(false), coin],
+        multi: [h2h({ any: 1 }), divRecord, ordered({ div: 1 }), common({ nonDiv: 1 }), cfpThenMetric, overall(false), coin] }
+    };
+    var GENERIC = { two: [h2h(), common(), ordered(), oppPct('sum'), metric, coin], multi: [h2h({ beat: 1 }), common(), ordered(), oppPct('sum'), metric, coin] };
+
+    // The k best of the tied group G, in seed order. After a step gives one team (or two, when two berths are
+    // open) the advantage, they take the berths and the rest start the procedure again (the two-team order once
+    // two are left). A step that leaves a smaller group on top removes the others from the tie.
+    function resolve(G, k, R, ctx, members) {
+      var chosen = [], from = 0;
+      G = G.slice();
+      while (k > 0 && G.length) {
+        if (G.length <= k) {
+          var ord = G.length === 2 ? resolve(G, 1, R, ctx, members) : G;
+          if (G.length === 2) ord = ord.concat(without(G, ord));
+          return chosen.concat(ord);
+        }
+        var steps = R.keepGoing ? R.multi : G.length === 2 ? R.two : R.multi, moved = false;
+        for (var s = from; s < steps.length; s++) {
+          var r = steps[s](G, ctx, members);
+          if (!r) continue;
+          if (r.adv != null) { chosen.push(r.adv); G = without(G, [r.adv]); k--; moved = true; from = 0; break; }
+          if (r.out) { G = without(G, r.out); moved = true; from = R.keepGoing ? s : 0; break; }
+          var best = Math.max.apply(null, r.v), top = G.filter(function (_, i) { return r.v[i] >= best - 1e-9; });
+          if (top.length === G.length) continue;
+          if (top.length <= k) {
+            var o2 = top.length === 2 ? resolve(top, 1, R, ctx, members) : top;
+            if (top.length === 2) o2 = o2.concat(without(top, o2));
+            chosen = chosen.concat(o2); G = without(G, top); k -= top.length; from = 0;
+          } else { G = top; from = R.keepGoing ? s + 1 : 0; }
+          moved = true; break;
+        }
+        // Every step left them level (only possible without a coin step): keep the given order.
+        if (!moved) return chosen.concat(G.slice(0, k));
+      }
+      return chosen;
+    }
+    // The teams level at the top of the standings. ACC: a team that played a different number of conference
+    // games is level with the leaders if it has as many wins or as few losses as one of them.
+    function topGroup(list, ctx, R) {
+      var best = Math.max.apply(null, list.map(function (t) { return confPct(ctx, t); }));
+      var lead = list.filter(function (t) { return Math.abs(confPct(ctx, t) - best) < 1e-9; });
+      if (R.tied !== 'acc') return lead;
+      return list.filter(function (t) {
+        if (lead.indexOf(t) >= 0) return true;
+        var gp = ctx.cw(t) + ctx.cl(t);
+        return lead.some(function (b) { return ctx.cw(b) + ctx.cl(b) !== gp && (ctx.cw(b) === ctx.cw(t) || ctx.cl(b) === ctx.cl(t)); });
+      });
+    }
+    // The best k of a set of teams by conference record, ties broken by the conference's procedure.
+    function bestOf(list, k, R, ctx, members) {
+      var chosen = [], left = list.slice();
+      while (chosen.length < k && left.length) {
+        var grp = topGroup(left, ctx, R), need = k - chosen.length;
+        if (grp.length === 1) chosen.push(grp[0]);
+        else chosen = chosen.concat(resolve(grp, Math.min(need, grp.length), R, ctx, members));
+        left = without(left, chosen.concat(grp.length > need ? grp : []));
+      }
+      return chosen;
+    }
+    // The two title game teams, No. 1 seed first. divs: the Sun Belt's two divisions, each sending its champion.
+    // conf: a conference key, or a rules object built from the steps (tests use this for past seasons' rules).
+    function top2(conf, members, ctx, divs) {
+      var R = typeof conf === 'object' ? conf : RULES[conf] || GENERIC;
+      if (divs && divs.length === 2) {
+        var a = bestOf(divs[0], 1, R, ctx, members)[0], b = bestOf(divs[1], 1, R, ctx, members)[0];
+        var pa = confPct(ctx, a), pb = confPct(ctx, b);
+        return pa > pb + 1e-9 ? [a, b] : pb > pa + 1e-9 ? [b, a] : resolve([a, b], 2, R, ctx, members);
+      }
+      // Most seasons need no tiebreaker: a lone leader and a lone second go straight through. (Not for the ACC
+      // when schedules differ in length, where its own rule can tie teams of different percentages.)
+      var b1 = -1, b2 = -1, t1 = -1, t2 = -1, n1 = 0, n2 = 0, gp = -1, even = true;
+      for (var i = 0; i < members.length; i++) {
+        var t = members[i], w = ctx.cw(t), l = ctx.cl(t), p = w + l ? w / (w + l) : 0;
+        if (gp < 0) gp = w + l; else if (w + l !== gp) even = false;
+        if (p > b1 + 1e-9) { b2 = b1; t2 = t1; n2 = n1; b1 = p; t1 = t; n1 = 1; }
+        else if (p > b1 - 1e-9) n1++;
+        else if (p > b2 + 1e-9) { b2 = p; t2 = t; n2 = 1; }
+        else if (p > b2 - 1e-9) n2++;
+      }
+      if (n1 === 1 && n2 === 1 && (R.tied !== 'acc' || even)) return [t1, t2];
+      // Two level for a spot who met: every conference's first step, head-to-head, settles it.
+      if (n1 + n2 <= 3 && (n1 === 2 || n2 === 2) && (R.tied !== 'acc' || even) && !R.divs) {
+        var pair = [], lead = n1 === 1 ? t1 : -1, pv = n1 === 2 ? b1 : b2;
+        for (i = 0; i < members.length; i++) { var u = members[i], wu = ctx.cw(u), lu = ctx.cl(u); if (Math.abs((wu + lu ? wu / (wu + lu) : 0) - pv) < 1e-9) pair.push(u); }
+        var x = pair[0], y = pair[1], hx = ctx.ch(x, y), hy = ctx.ch(y, x);
+        if (pair.length === 2 && hx !== hy) { var win = hx > hy ? x : y, lose = win === x ? y : x; return lead >= 0 ? [lead, win] : [win, lose]; }
+      }
+      return bestOf(members, 2, R, ctx, members);
+    }
+    return { top2: top2, RULES: RULES, steps: { h2h: h2h, common: common, ordered: ordered, oppPct: oppPct, divRecord: divRecord, metric: metric, rating: rating, coin: coin, totalWins: totalWins, overall: overall, cfpThenMetric: cfpThenMetric, cfpRank: cfpRank } };
+  })();
+
+  // ---------- The table's week ----------
+  // Which week the rankings table's week column shows: the latest week under way until every game in it is
+  // over, then the next. Conference championship week has no games in ESPN's weekly list (title games are kept
+  // apart), so it gets its own place: after the last regular week before the title games, while any title game
+  // is unfinished. status(g) gives a game's state ('pre', 'in', 'post'); now is a time in ms.
+  // Returns { wk, ccg }: ccg is true in championship week, when wk is that week's number.
+  function tableWeek(games, titles, now, status) {
+    status = status || function (g) { return g.s; };
+    var weeks = [], wk = null, i;
+    games.forEach(function (g) { if (g.wk != null && weeks.indexOf(g.wk) < 0) weeks.push(g.wk); });
+    weeks.sort(function (a, b) { return a - b; });
+    if (!weeks.length) return { wk: null, ccg: false };
+    games.forEach(function (g) { if (g.wk != null && Date.parse(g.d) <= now && (wk == null || g.wk > wk)) wk = g.wk; });
+    if (wk == null) wk = weeks[0];
+    // Championship week: one past the last week played before the first title game.
+    var ccgWk = null, pending = (titles || []).filter(function (t) { return !(t.w >= 0) && t.s !== 'post'; });
+    if (titles && titles.length) {
+      var first = Math.min.apply(null, titles.map(function (t) { return Date.parse(t.d); })), before = null;
+      games.forEach(function (g) { if (g.wk != null && Date.parse(g.d) < first && (before == null || g.wk > before)) before = g.wk; });
+      if (before != null) ccgWk = before + 1;
+    }
+    function over(w) {
+      var list = games.filter(function (g) { return g.wk === w; });
+      return list.length > 0 && list.every(function (g) { return status(g) === 'post'; });
+    }
+    if (!over(wk)) return { wk: wk, ccg: false };
+    var later = weeks.filter(function (w) { return w > wk; });
+    if (ccgWk != null && wk < ccgWk && pending.length && (!later.length || later[0] >= ccgWk)) return { wk: ccgWk, ccg: true };
+    for (i = 0; i < later.length; i++) if (later[i] !== ccgWk || !pending.length) return { wk: later[i], ccg: false };
+    return { wk: wk, ccg: false };
+  }
+
   // ---------- Prepare one rating mode ----------
   // picks: { gameId: ESPN id of the team picked to win }
   function prep(D, mode, picks) {
@@ -259,7 +535,12 @@ var CFP = (function () {
       R[g.h] += share * M.surprise * (res - p); R[g.a] -= share * M.surprise * (res - p);
     });
     var W0 = new Int16Array(n), L0 = new Int16Array(n), CW0 = new Int16Array(n), CL0 = new Int16Array(n);
-    var H0 = new Int8Array(n * n), sosSum = new Float64Array(n), sosN = new Int16Array(n);
+    var H0 = new Int8Array(n * n), CH0 = new Int8Array(n * n), fcsW0 = new Int16Array(n), sosSum = new Float64Array(n), sosN = new Int16Array(n);
+    // Each team's last conference game of the regular season: its index among the games left, or -1 with
+    // lastLost0 saying whether it was lost.
+    var lastConfK = new Int32Array(n).fill(-1), lastLost0 = new Uint8Array(n);
+    // A conference game for the standings. The Pac-12's week-13 "flex" games don't count (Sept 3, 2026 release).
+    function inStandings(g) { return !!g.c && !(T[g.h].conf === 'pac12' && T[g.a].conf === 'pac12' && g.wk >= 13); }
     var maxPairs = D.games.length + 40, pw = new Int16Array(maxPairs), pl = new Int16Array(maxPairs), np = 0;
     var todoH = [], todoA = [], todoS = [], todoP = [], todoC = [], todoCur = [], todoF = [], todoLive = [], todoLock = [], nextGame = new Int32Array(n).fill(-1), remainCount = new Int16Array(n), gameIdx = [];
     D.games.forEach(function (g) {
@@ -267,11 +548,13 @@ var CFP = (function () {
       if (g.s === 'post' && g.hs !== g.as) {
         var w = g.hs > g.as ? g.h : g.a, l = w === g.h ? g.a : g.h;
         W0[w]++; L0[l]++;
-        if (g.c) { CW0[w]++; CL0[l]++; }
+        if (l >= fbs) fcsW0[w]++;
+        if (inStandings(g)) { CW0[w]++; CL0[l]++; CH0[w * n + l]++; lastConfK[w] = -1; lastConfK[l] = -1; lastLost0[w] = 0; lastLost0[l] = 1; }
         H0[w * n + l]++; pw[np] = w; pl[np] = l; np++;
       } else {
         var k = todoH.length, sp = R[g.h] - R[g.a] + (g.n ? 0 : hfa);
-        todoH.push(g.h); todoA.push(g.a); todoS.push(sp); todoP.push(phi(sp / total)); todoC.push(g.c); gameIdx.push(g.id);
+        todoH.push(g.h); todoA.push(g.a); todoS.push(sp); todoP.push(phi(sp / total)); todoC.push(inStandings(g) ? 1 : 0); gameIdx.push(g.id);
+        if (inStandings(g)) { lastConfK[g.h] = k; lastConfK[g.a] = k; }
         var f = g.s === 'in' ? g.frac : 1, cur = g.s === 'in' ? (g.hs - g.as) * (g.ot ? 0.5 : 1) : 0;
         todoCur.push(cur); todoF.push(f);
         var pk = picks ? picks[g.id] : null;
@@ -296,8 +579,15 @@ var CFP = (function () {
         confs[t.conf].forEach(function (x) { (m[T[x].div] = m[T[x].div] || []).push(x); });
         divs = Object.keys(m).map(function (k) { return m[k]; });
       }
-      return { conf: t.conf, members: confs[t.conf], divs: divs, n: t.n, h: t.h, a: t.a, w: t.w, s: t.s };
+      // A "Win conf." pick: that team wins the title game whenever it plays in it.
+      var pk = picks ? picks['ccg:' + t.conf] : null, lock = -1;
+      if (pk != null) confs[t.conf].forEach(function (x) { if (T[x].id === pk) lock = x; });
+      return { conf: t.conf, members: confs[t.conf], divs: divs, n: t.n, h: t.h, a: t.a, w: t.w, s: t.s, lock: lock };
     });
+    // The CFP ranking going into a team's final week, where the tiebreakers use it: the real ranking once only
+    // that week is left (or none), else the simulated one.
+    var rankFinal = new Int16Array(n).fill(-1);
+    if (D.hasCfp) for (i = 0; i < fbs; i++) if (remainCount[i] <= 1) rankFinal[i] = T[i].rank || 0;
     var isP4 = new Uint8Array(n), isG6 = new Uint8Array(n), ND = -1;
     for (i = 0; i < fbs; i++) {
       isP4[i] = P4.indexOf(T[i].conf) >= 0 ? 1 : 0;
@@ -307,7 +597,7 @@ var CFP = (function () {
     var P = {
       D: D, mode: mode, n: n, fbs: fbs, R: R, hfa: hfa, total: total, W0: W0, L0: L0, CW0: CW0, CL0: CL0, H0: H0, sos: sos, sosMean: sosMean,
       pw: pw, pl: pl, np: np, tH: Int16Array.from(todoH), tA: Int16Array.from(todoA), tS: Float64Array.from(todoS), tP: Float64Array.from(todoP), tC: Uint8Array.from(todoC), tCur: Float64Array.from(todoCur), tF: Float64Array.from(todoF), tRootF: Float64Array.from(todoF.map(Math.sqrt)), tLive: Float64Array.from(todoLive), tLock: Int16Array.from(todoLock), gameIdx: gameIdx,
-      nextGame: nextGame, remainCount: remainCount, titles: titles, isP4: isP4, isG6: isG6, ND: ND, anchor: new Float64Array(n)
+      nextGame: nextGame, remainCount: remainCount, titles: titles, CH0: CH0, fcsW0: fcsW0, lastConfK: lastConfK, lastLost0: lastLost0, rankFinal: rankFinal, isP4: isP4, isG6: isG6, ND: ND, anchor: new Float64Array(n)
     };
     computeAnchor(P);
     return P;
@@ -424,34 +714,45 @@ var CFP = (function () {
     this.titleWin = new Int16Array(P.titles.length); this.inTitle = new Uint8Array(n);
     this.titleLoss = new Int16Array(n);
     this.orderArr = []; for (var i = 0; i < fbs; i++) this.orderArr.push(i);
+    this.CH = new Int8Array(n * n); this.Wr = new Int16Array(n); this.fcsW = new Int16Array(n);
+    this.npNow = 0; this.mAll = new Float64Array(fbs); this.mRun = -1; this.runNo = 0;
+    var self = this;
+    // What the conference tiebreakers read. metric stands in for SportSource and the computer-ranking
+    // composites: the committee score's core (rating after this season's results, losses, schedule strength)
+    // without the quality-win terms, so it needs no sort and costs nothing until a tie reaches it.
+    function metricOf(t) {
+      var L = self.L[t];
+      return M.wRating * self.post[t] - M.wLoss * L - (L > 2 ? M.wLoss3 * (L - 2) : 0) + M.wSos * (P.sos[t] - P.sosMean);
+    }
+    this.ctx = {
+      cw: function (t) { return self.CW[t]; }, cl: function (t) { return self.CL[t]; },
+      ch: function (a, b) { return self.CH[a * n + b]; },
+      w: function (t) { return self.Wr[t]; }, l: function (t) { return self.L[t]; }, fcsW: function (t) { return self.fcsW[t]; },
+      metric: metricOf,
+      rating: function (t) { return self.post[t] + self.eps[t]; },
+      rank: function (t) {
+        if (P.rankFinal[t] >= 0) return P.rankFinal[t];
+        if (t >= fbs) return 0;
+        // The simulated ranking: one plus the FBS teams with a better metric, unranked past 25.
+        var all = self.mAll, k;
+        if (self.mRun !== self.runNo) { for (k = 0; k < fbs; k++) all[k] = metricOf(k); self.mRun = self.runNo; }
+        var m = all[t], above = 0;
+        for (k = 0; k < fbs && above < 25; k++) if (all[k] > m) above++;
+        return above < 25 ? above + 1 : 0;
+      },
+      lostFinal: function (t) { var k = P.lastConfK[t]; return k >= 0 ? self.res[k] !== t : P.lastLost0[t] === 1; },
+      div: function (t) { return P.D.teams[t].div || ''; },
+      rand: function () { return self.u(); }
+    };
   }
+  // A uniform draw in [0, 1), from the same generator.
+  Sim.prototype.u = function () {
+    var x = this.s; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.s = x;
+    return (x >>> 0) / 4294967296;
+  };
   Sim.prototype.g = function () {
     var x = this.s; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.s = x;
     return this.G[(x >>> 8) & 65535];
-  };
-
-  // Rank tied teams: head-to-head inside the group, then overall losses, then rating.
-  Sim.prototype.pickFrom = function (list, exclude) {
-    var P = this.P, n = P.n, CW = this.CW, CL = this.CL, best = -1, tied = [], i;
-    for (i = 0; i < list.length; i++) {
-      var t = list[i];
-      if (t === exclude) continue;
-      var gp = CW[t] + CL[t], pct = gp ? CW[t] / gp : 0;
-      if (pct > best + 1e-9) { best = pct; tied = [t]; }
-      else if (Math.abs(pct - best) <= 1e-9) tied.push(t);
-    }
-    if (tied.length === 1) return tied[0];
-    var bestT = -1, bestV = -1e9;
-    for (i = 0; i < tied.length; i++) {
-      var a = tied[i], hw = 0, hl = 0;
-      for (var j = 0; j < tied.length; j++) {
-        if (j === i) continue;
-        hw += this.H[a * n + tied[j]]; hl += this.H[tied[j] * n + a];
-      }
-      var v = (hw + hl ? (hw - hl) / (hw + hl) : 0) * 1000 - this.L[a] * 10 + (P.R[a] + this.eps[a]) * 0.01;
-      if (v > bestV) { bestV = v; bestT = a; }
-    }
-    return bestT;
   };
 
   // Picked games always go to the picked team. forced: team that must win its next game, or -1.
@@ -459,6 +760,11 @@ var CFP = (function () {
     var P = this.P, n = P.n, fbs = P.fbs, m = P.tH.length, i, eps = this.eps, post = this.post, L = this.L, CW = this.CW, CL = this.CL, H = this.H, R = P.R;
     for (i = 0; i < n; i++) { eps[i] = P.R[i] === 0 ? 0 : this.g() * M.teamSD; post[i] = R[i]; }
     L.set(P.L0); CW.set(P.CW0); CL.set(P.CL0); H.set(P.H0);
+    var CH = this.CH, Wr = this.Wr, fcsW = this.fcsW;
+    // Only the pairs with conference games still to play change during a season, so only they are reset.
+    if (!this.chInit) { CH.set(P.CH0); this.chInit = true; }
+    else for (i = 0; i < m; i++) if (P.tC[i]) { var hh = P.tH[i], aa = P.tA[i]; CH[hh * n + aa] = P.CH0[hh * n + aa]; CH[aa * n + hh] = P.CH0[aa * n + hh]; }
+    Wr.set(P.W0); fcsW.set(P.fcsW0); this.runNo++;
     this.tL.fill(0); this.champ.fill(0);
     var np = P.np, pw = this.pw, pl = this.pl, nextOfForced = forced >= 0 ? P.nextGame[forced] : -1;
     for (var k = 0; k < m; k++) {
@@ -474,8 +780,9 @@ var CFP = (function () {
       }
       var l = w === h ? a : h;
       this.res[k] = w;
-      L[l]++; H[w * n + l]++;
-      if (P.tC[k]) { CW[w]++; CL[l]++; }
+      L[l]++; H[w * n + l]++; Wr[w]++;
+      if (l >= fbs) fcsW[w]++;
+      if (P.tC[k]) { CW[w]++; CL[l]++; CH[w * n + l]++; }
       pw[np] = w; pl[np] = l; np++;
       var sur = M.surprise * ((w === h ? 1 : 0) - P.tP[k]);
       post[h] += sur; post[a] -= sur;
@@ -483,18 +790,19 @@ var CFP = (function () {
     // Conference title games
     var champs = this.champ, g6Champs = [], inT = this.inTitle;
     inT.fill(0);
+    this.npNow = np;
     for (i = 0; i < P.titles.length; i++) {
       var tg = P.titles[i], x, y, wt;
       if (tg.h >= 0 && tg.a >= 0) { x = tg.h; y = tg.a; }
-      else if (tg.divs) { x = this.pickFrom(tg.divs[0], -1); y = this.pickFrom(tg.divs[1], -1); }
-      else { x = this.pickFrom(tg.members, -1); y = this.pickFrom(tg.members, x); }
+      else { var two = TB.top2(tg.conf, tg.members, this.ctx, tg.divs); x = two[0]; y = two[1]; } // x: the No. 1 seed
       inT[x] = 1; inT[y] = 1;
       if (tg.w >= 0) wt = tg.w;
       else {
-        // Non-neutral title games are hosted by the better conference record.
-        var xh = tg.n ? 0 : ((CW[x] - CL[x]) >= (CW[y] - CL[y]) ? P.hfa : -P.hfa);
+        // Non-neutral title games are hosted by the No. 1 seed (the home team once the matchup is set).
+        var xh = tg.n ? 0 : P.hfa;
         var spr = R[x] - R[y] + xh;
         wt = spr + eps[x] - eps[y] + this.g() * M.gameSD > 0 ? x : y;
+        if (tg.lock === x || tg.lock === y) wt = tg.lock; // a "Win conf." pick
         var pe = phi(spr / P.total), sr = M.surprise * ((wt === x ? 1 : 0) - pe);
         post[x] += sr; post[y] -= sr;
         var lt = wt === x ? y : x;
@@ -647,7 +955,7 @@ var CFP = (function () {
 
   return {
     M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, CONF_ABBR: CONF_ABBR, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, projectRanking: projectRanking, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
-    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp, measureSwings: measureSwings
+    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp, measureSwings: measureSwings, TB: TB, tableWeek: tableWeek
   };
 })();
 if (typeof module !== 'undefined') module.exports = CFP;

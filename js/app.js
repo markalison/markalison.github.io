@@ -222,7 +222,8 @@
       th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
       th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
-      '<th class="pick c-pick" title="Each team’s game in week ' + tableWeek() + ': a pick box until it ends, then the result">Wk ' + tableWeek() + '</th>' +
+      (weekInfo().ccg ? '<th class="pick c-pick" title="Conference championship games: pick a team to win its title game if it gets there">CCG</th>' :
+        '<th class="pick c-pick" title="Each team’s game in week ' + tableWeek() + ': a pick box until it ends, then the result">Wk ' + tableWeek() + '</th>') +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
       th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
@@ -309,18 +310,45 @@
   }
   // The table's week column: the current week until every game in it is final, then the next week with games,
   // so picks open for next week once this one is done.
-  function tableWeek() {
-    var wk = weekGames().wk, all = D.games.filter(function (g) { return g.wk === wk; });
-    if (all.length && all.every(function (g) { return sbStat(g) === 'post'; })) {
-      var later = D.games.filter(function (g) { return g.wk != null && g.wk > wk; }).map(function (g) { return g.wk; });
-      if (later.length) wk = Math.min.apply(null, later);
+  // In conference championship week it holds the title games (engine.js tableWeek decides which week it is).
+  function weekInfo() { return CFP.tableWeek(D.games, D.titles, Date.now(), sbStat); }
+  function tableWeek() { return weekInfo().wk; }
+  // A team's conference title game entry, or null (an independent, or a conference without one).
+  function titleOf(x) { return D.titles.filter(function (t) { return t.conf === x.t.conf; })[0] || null; }
+  function titleOver(tg) { return tg.w >= 0 || tg.s === 'post'; }
+  // Championship week in the table: once a title game is over, its two teams show W or L. Before that, each
+  // team still able to reach it (it does in at least one simulated season) gets a pick box: W means it wins
+  // the title game if it gets there. Once the matchup is set, the box works like any other game's.
+  function ccgCell(x) {
+    var tg = titleOf(x);
+    if (!tg) return '';
+    var set = tg.h >= 0 && tg.a >= 0, inGame = tg.h === x.i || tg.a === x.i, opp = set && inGame ? D.teams[tg.h === x.i ? tg.a : tg.h] : null;
+    if (titleOver(tg)) {
+      if (!inGame) return '';
+      var won = tg.w === x.i, label = x.t.name + (won ? ' won' : ' lost') + ' the title game' + (opp ? (won ? ' over ' : ' to ') + opp.name : '');
+      return '<div class="nx-cell" title="' + esc(label) + '"><span class="nx-res" aria-label="' + esc(label) + '"><b class="res ' + (won ? 'res-w' : 'res-l') + '">' + (won ? 'W' : 'L') + '</b></span>' + (opp ? '<span class="nx-vs" aria-hidden="true">vs ' + esc(opp.ab || opp.name) + '</span>' : '') + '</div>';
     }
-    return wk;
+    if (set ? !inGame : !(x.r.ccg > 0)) return '';
+    return ccgBox(x, tg, opp);
+  }
+  // bare: just the box (the team page's schedule), without the table cell's caption.
+  function ccgBox(x, tg, opp, bare) {
+    var key = 'ccg:' + tg.conf, pk = st.picks[key], won = pk === x.t.id, lost = !!pk && !won && !!opp && pk === opp.id;
+    var other = !!pk && !won && !lost ? D.teams.filter(function (t) { return t.id === pk; })[0] : null;
+    var what = x.t.name + ' in the ' + (CFP.CONF_NAME[tg.conf] || tg.conf) + ' title game' + (opp ? ' vs ' + opp.name : '');
+    var label = won ? what + ': picked to win. Press to ' + (opp ? 'pick a loss' : 'clear the pick') : lost ? what + ': picked to lose. Press to clear the pick' :
+      (other ? other.name + ' is picked to win this conference. ' : '') + 'No pick for ' + what + '. Press to pick it to win' + (opp ? '' : ' if it gets there');
+    var box = '<button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(key) + '" data-team="' + x.t.id + '" data-opp="' + esc(opp ? opp.id : '') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button>';
+    if (bare) return '<span class="mini">' + box + '</span>';
+    return '<div class="nx-cell"><div class="mini">' + box + '</div>' +
+      '<span class="nx-vs" aria-hidden="true">' + (opp ? 'vs ' + esc(opp.ab || opp.name) : '<abbr title="Chance to reach the title game">' + pct(x.r.ccg) + '</abbr>') + '</span></div>';
   }
   // Each team's game in that week: a W/L pick box until the game ends, then its result and score. A team
   // with no game that week (a bye) gets a blank cell.
   function weekCell(x) {
-    var g = weekGame(x, tableWeek());
+    var info = weekInfo();
+    if (info.ccg) return ccgCell(x);
+    var g = weekGame(x, info.wk);
     if (!g) return '';
     var home = g.h === x.i, opp = D.teams[home ? g.a : g.h], vs = (home || g.n ? 'vs ' : '@') + esc(opp.ab || opp.name);
     if (sbStat(g) === 'post') {
@@ -569,8 +597,24 @@
       }
       return '<tr' + (s === 'in' ? ' class="tg-live"' : '') + '><td class="tg-date"><span class="tg-wide">' + day({ weekday: 'short' }) + ', </span>' + day({ month: 'short', day: 'numeric' }) + when + '</td>' +
         '<td><span class="tg-team">' + opp + '</span></td><td class="tg-res"><div class="tg-cell">' + cell + '</div></td></tr>';
-    }).join('');
+    }).join('') + ccgRow(x);
     return '<table class="tp-table tp-games"><thead><tr><th scope="col">Date</th><th scope="col">Opponent</th><th scope="col" class="tg-res">Result</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  // The conference title game, after the schedule, for a team that can still reach it or played in it: its
+  // chance to get there and a pick box (win if it gets there), or the result.
+  function ccgRow(x) {
+    var tg = titleOf(x);
+    if (!tg) return '';
+    var set = tg.h >= 0 && tg.a >= 0, inGame = tg.h === x.i || tg.a === x.i;
+    if (titleOver(tg) ? !inGame : set ? !inGame : !(x.r.ccg > 0)) return '';
+    var oi = inGame ? (tg.h === x.i ? tg.a : tg.h) : -1, o = oi >= 0 ? D.teams[oi] : null;
+    var day = function (opt) { return new Date(tg.d).toLocaleDateString('en-US', Object.assign({ timeZone: 'America/New_York' }, opt)); };
+    var name = esc(CFP.CONF_ABBR[tg.conf] || CFP.CONF_NAME[tg.conf] || tg.conf) + ' title game';
+    var who = '<span class="tg-vs">' + (o ? 'vs' : '') + '</span>' + (o ? logo(o, 22) + teamLink(oi, '<span class="tg-long">' + esc(o.name) + '</span><span class="tg-short">' + esc(o.ab || o.name) + '</span>') + ' <small class="tg-ccg">' + name + '</small>' : '<span>' + name + '</span>');
+    var cell = titleOver(tg) ? '<span class="tg-part"><b class="res ' + (tg.w === x.i ? 'res-w' : 'res-l') + '">' + (tg.w === x.i ? 'W' : 'L') + '</b></span>' :
+      '<span class="tg-part">' + (set ? '' : '<span class="tg-win" title="Chance to reach the title game">' + pct(x.r.ccg) + '</span>') + ccgBox(x, tg, o, true) + '</span>';
+    return '<tr class="tg-ccgrow"><td class="tg-date"><span class="tg-wide">' + day({ weekday: 'short' }) + ', </span>' + day({ month: 'short', day: 'numeric' }) + '</td>' +
+      '<td><span class="tg-team">' + who + '</span></td><td class="tg-res"><div class="tg-cell">' + cell + '</div></td></tr>';
   }
   // The head of the page: who the team is (logo, full name, CFP rank, conference with its logo, and record) and
   // its résumé.
@@ -1328,6 +1372,7 @@
         D = data; st.pendingD = null; schedCache = {}; results = {}; pickResults = {}; st.live = 'on';
         var open = {};
         D.games.forEach(function (g) { if (g.s !== 'post') open[g.id] = 1; });
+        D.titles.forEach(function (t) { if (!titleOver(t)) open['ccg:' + t.conf] = 1; });
         Object.keys(st.picks).forEach(function (k) { if (!open[k]) delete st.picks[k]; }); // that game has finished
       }
       lastRes = result;
@@ -1469,9 +1514,11 @@
     } else if (b.dataset.pick) {
       lockOrder();
       // Each press moves this team through blank, win, loss and back to blank.
-      var current = st.picks[b.dataset.pick];
-      if (!current) st.picks[b.dataset.pick] = b.dataset.team;
-      else if (current === b.dataset.team) st.picks[b.dataset.pick] = b.dataset.opp;
+      // A conference title pick before the matchup is set has no opponent: it moves through win and blank,
+      // and picking a team replaces another team's pick in that conference.
+      var current = st.picks[b.dataset.pick], team = b.dataset.team, opp = b.dataset.opp;
+      if (!current || (!opp && current !== team)) st.picks[b.dataset.pick] = team;
+      else if (current === team && opp) st.picks[b.dataset.pick] = opp;
       else delete st.picks[b.dataset.pick];
       st.quiet = false;
       renderPicksBar();

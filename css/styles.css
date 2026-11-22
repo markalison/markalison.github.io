@@ -252,6 +252,8 @@ th.pick, td.pick { text-align: center; }
 /* Next column: the W/L box with next week's opponent under it. */
 .nx-cell { display: inline-grid; justify-items: center; gap: 2px; max-width: 100%; }
 /* A finished game in the table's week column: W or L and the score, the height of a pick box. */
+/* The conference title game row on a team page: the conference name after the opponent. */
+.tg-ccg { margin-left: 6px; font: 500 var(--text-xs)/1 var(--body); color: var(--muted); white-space: nowrap; }
 .nx-res { display: flex; align-items: center; justify-content: center; gap: 3px; height: 28px; font: 600 var(--text-sm)/1 var(--display); white-space: nowrap; }
 .nx-vs { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.1; color: var(--muted); }
 .empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }

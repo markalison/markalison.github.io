@@ -135,19 +135,19 @@
   function inView(t) { return inGroup(t, st.view); }
   var GROUP_NAME = { p4: 'Power 4', g5: 'Group of 6' };
   // The Conference pickers (Rankings and Scores): the team groups first, then each conference. Groups are
-  // stored as "group:p4". Each picker is a button showing the choice and, when open, a list in which the
-  // conferences carry their logos, which a plain <select> can't show. st.pickOpen is the id of the open one.
+  // stored as "group:p4". Each picker is a button showing the choice and, when open, a list of names (no
+  // logos). st.pickOpen is the id of the open one.
   function confPicker(id, selected, open) {
     var confs = {}, cur = ['', 'FBS'];
     for (var i = 0; i < D.fbs; i++) confs[D.teams[i].conf] = 1;
     function option(v, label) {
       if (v === selected) cur = [v, label];
-      return '<button type="button" role="option" class="pick-opt" data-pick-value="' + v + '" aria-selected="' + (v === selected) + '"><span class="pick-logo">' + confLogo(v) + '</span>' + esc(label) + '</button>';
+      return '<button type="button" role="option" class="pick-opt" data-pick-value="' + v + '" aria-selected="' + (v === selected) + '">' + esc(label) + '</button>';
     }
     function group(label, options) { return '<div role="group" aria-label="' + label + '"><span class="pick-head" aria-hidden="true">' + label + '</span>' + options + '</div>'; }
     var list = group('Teams', option('', 'FBS') + option('group:p4', 'Power 4') + option('group:g5', 'Group of 6')) +
       group('Conferences', Object.keys(confs).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }).map(function (c) { return option(c, CFP.CONF_NAME[c] || c); }).join(''));
-    return '<button type="button" class="pick-btn" data-picker="' + id + '" aria-haspopup="listbox" aria-expanded="' + !!open + '" aria-label="Conference: ' + esc(cur[1]) + '">' + confLogo(cur[0]) + '<span>' + esc(cur[1]) + '</span></button>' +
+    return '<button type="button" class="pick-btn" data-picker="' + id + '" aria-haspopup="listbox" aria-expanded="' + !!open + '" aria-label="Conference: ' + esc(cur[1]) + '"><span>' + esc(cur[1]) + '</span></button>' +
       '<div class="pick-list" role="listbox" aria-label="Conference"' + (open ? '' : ' hidden') + '>' + list + '</div>';
   }
   // The list opens from the button's left edge, or from its right edge when that would run off the screen (the

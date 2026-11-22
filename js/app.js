@@ -226,9 +226,9 @@
         '<th class="pick c-pick" title="Each team’s game in week ' + tableWeek() + ': a pick box until it ends, then the result">Wk ' + tableWeek() + '</th>') +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
-      th('ccg', '<abbr title="Chance to play in the conference championship game">Make conf. game</abbr>', 'c-ccg sec') + '</th>' +
-      th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
-      th('title', 'Win title', 'c-title sec') + '</th>';
+      th('ccg', '<abbr title="Chance to play in the conference championship game">Make conf</abbr>', 'c-ccg sec') + '</th>' +
+      th('champ', 'Win conf', 'c-conf sec') + '</th>' +
+      th('title', 'Win CFP', 'c-title sec') + '</th>';
   }
   function nextChance(g, t) {
     var pk = st.picks[g.id];
@@ -304,8 +304,8 @@
       stat('Make CFP', pct(R.cfp)) +
       stat('First-round bye', pct(R.bye)) +
       stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
-      stat('Win conf.', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
-      stat('Win title', pct(R.title)) +
+      stat('Win conf', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
+      stat('Win CFP', pct(R.title)) +
       stat('Rating', x.rating.toFixed(1)) +
     '</dl>';
   }
@@ -649,9 +649,9 @@
     return '<dl class="rs-tiles tp-odds">' +
       tile('Make CFP', 'Chance to make the 12-team playoff', r.cfp) +
       tile('1st-round bye', 'Chance to earn a first-round bye', r.bye) +
-      tile('Make conf. championship', 'Chance to play in the conference championship game', ind ? null : r.ccg, ind ? '\u2014' : null) +
-      tile('Win conference', 'Chance to win the conference championship', ind ? null : r.champ, ind ? '\u2014' : null) +
-      tile('Win title', 'Chance to win the national championship', r.title) +
+      tile('Make conf', 'Chance to play in the conference championship game', ind ? null : r.ccg, ind ? '\u2014' : null) +
+      tile('Win conf', 'Chance to win the conference championship', ind ? null : r.champ, ind ? '\u2014' : null) +
+      tile('Win CFP', 'Chance to win the national championship', r.title) +
       tile('Win out', 'Chance to win every regular-season game left (' + rs.nLeft + ')', rs.winOut, rs.winOut == null ? '\u2014' : null) +
       tile('Avg seed', 'Average playoff seed in the simulations where they make the CFP', null, r.seed ? r.seed.toFixed(1) : '\u2014') +
     '</dl>';
@@ -680,8 +680,8 @@
     }).join('');
     return '<table class="tp-table tp-stand"><thead><tr><th scope="col">Team</th>' +
       '<th scope="col"><abbr title="Conference record">Conf</abbr></th><th scope="col"><abbr title="Overall record">Ovr</abbr></th>' +
-      '<th scope="col"><abbr title="Chance to play in the conference championship game">Conf. game</abbr></th>' +
-      '<th scope="col"><abbr title="Chance to win the conference championship">Win conf.</abbr></th></tr></thead><tbody>' + body + '</tbody></table>';
+      '<th scope="col"><abbr title="Chance to play in the conference championship game">Make conf</abbr></th>' +
+      '<th scope="col"><abbr title="Chance to win the conference championship">Win conf</abbr></th></tr></thead><tbody>' + body + '</tbody></table>';
   }
   // Everything under the headline odds, in three columns on wide screens: the schedule, then Make CFP over time
   // over the seed chart, then the conference standings. An independent has no standings, so its two charts take

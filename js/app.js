@@ -224,10 +224,11 @@
       th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
       (weekInfo().ccg ? '<th class="pick c-pick" title="Conference championship games: pick a team to win its conference championship if it gets there">CCG</th>' :
         '<th class="pick c-pick" title="Each team’s game in week ' + tableWeek() + ': a pick box until it ends, then the result">Wk ' + tableWeek() + '</th>') +
-      th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
-      th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
+      // Conference first, then the playoff: Make conf, Win conf, 1st rd bye, Make CFP, Win CFP.
       th('ccg', '<abbr title="Chance to play in the conference championship game">Make conf</abbr>', 'c-ccg sec') + '</th>' +
       th('champ', 'Win conf', 'c-conf sec') + '</th>' +
+      th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
+      th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('title', 'Win CFP', 'c-title sec') + '</th>';
   }
   function nextChance(g, t) {
@@ -301,11 +302,11 @@
     var R = x.r;
     function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
     return '<dl class="field-stats' + (cls ? ' ' + cls : '') + '">' +
-      stat('Make CFP', pct(R.cfp)) +
-      stat('First-round bye', pct(R.bye)) +
-      stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
       stat('Win conf', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
+      stat('First-round bye', pct(R.bye)) +
+      stat('Make CFP', pct(R.cfp)) +
       stat('Win CFP', pct(R.title)) +
+      stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
       stat('Rating', x.rating.toFixed(1)) +
     '</dl>';
   }
@@ -642,15 +643,15 @@
   // The headline odds, as tiles shaded like the table's cells. An independent has no conference to win.
   function teamOdds(x) {
     var r = x.r, ind = x.t.conf === 'ind', rs = resumes().teams[x.i];
-    function tile(label, title, v, text) {
+    function tile(label, title, v, text, cls) {
       // A chance shades its cell green by its value, like the table's cells; a number that isn't one (Avg seed) doesn't.
-      return '<div' + (v == null ? '' : ' style="--p:' + v.toFixed(3) + '"') + '><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + (text != null ? text : pct(v)) + '</dd></div>';
+      return '<div' + (cls ? ' class="' + cls + '"' : '') + (v == null ? '' : ' style="--p:' + v.toFixed(3) + '"') + '><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + (text != null ? text : pct(v)) + '</dd></div>';
     }
     return '<dl class="rs-tiles tp-odds">' +
-      tile('Make CFP', 'Chance to make the 12-team playoff', r.cfp) +
-      tile('1st-round bye', 'Chance to earn a first-round bye', r.bye) +
       tile('Make conf', 'Chance to play in the conference championship game', ind ? null : r.ccg, ind ? '\u2014' : null) +
       tile('Win conf', 'Chance to win the conference championship', ind ? null : r.champ, ind ? '\u2014' : null) +
+      tile('1st-round bye', 'Chance to earn a first-round bye', r.bye) +
+      tile('Make CFP', 'Chance to make the 12-team playoff', r.cfp, null, 'tp-lead') +
       tile('Win CFP', 'Chance to win the national championship', r.title) +
       tile('Win out', 'Chance to win every regular-season game left (' + rs.nLeft + ')', rs.winOut, rs.winOut == null ? '\u2014' : null) +
       tile('Avg seed', 'Average playoff seed in the simulations where they make the CFP', null, r.seed ? r.seed.toFixed(1) : '\u2014') +
@@ -758,9 +759,9 @@
         '<td class="num rec">' + x.rec.text + '</td>' +
         '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + weekCell(x) + '</td>' +
+        (x.t.conf === 'ind' ? '<td class="sec">—</td><td class="sec">—</td>' : shaded(x.r.ccg) + shaded(x.r.champ)) + shaded(x.r.bye) +
         '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +
-        shaded(x.r.bye) +
-        (x.t.conf === 'ind' ? '<td class="sec">—</td><td class="sec">—</td>' : shaded(x.r.ccg) + shaded(x.r.champ)) + shaded(x.r.title) + '</tr>';
+        shaded(x.r.title) + '</tr>';
       return r;
     }).join('');
   }

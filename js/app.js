@@ -623,12 +623,9 @@
   // along the bottom.
   function teamHead(x) {
     var t = x.t, rec = x.rec, ind = t.conf === 'ind', conf = CFP.CONF_NAME[t.conf] || t.conf;
-    function move(now, prev) {
-      if (!prev) return '<small class="mv up" title="Unranked last week">new</small>';
-      return prev > now ? '<small class="mv up" title="Up from No. ' + prev + '">\u25b2' + (prev - now) + '</small>' : prev < now ? '<small class="mv down" title="Down from No. ' + prev + '">\u25bc' + (now - prev) + '</small>' : '';
-    }
+    // Just the rank, the same for all three rankings.
     function poll(label, title, now, prev, has) {
-      var v = now ? '<span><span class="tp-hash">#</span>' + now + '</span>' + move(now, prev) : '<span class="tp-nr" title="Not ranked">NR</span>';
+      var v = now ? '<span><span class="tp-hash">#</span>' + now + '</span>' : '<span class="tp-nr" title="Not ranked">NR</span>';
       return has ? '<div><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + v + '</dd></div>' : '';
     }
     var stand = '<dl class="tp-standing">' +

@@ -121,7 +121,7 @@
   }
   var COLS = {
     team: function (x) { return x.t.rank || 200 - x.r.cfp; }, proj: function (x) { return x.proj && x.proj <= 25 ? x.proj : 200 - x.r.cfp; }, rating: function (x) { return x.modelRank; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
-    cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
+    cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, ccg: function (x) { return x.r.ccg; }, champ: function (x) { return x.r.champ; },
     seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; },
     rec: function (x) { var n = x.rec.w + x.rec.l; return (n ? x.rec.w / n : 0) + x.rec.w / 1000; }, index: function (x) { return x.index; }
   };
@@ -222,10 +222,11 @@
       th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
       th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
-      (weekInfo().ccg ? '<th class="pick c-pick" title="Conference championship games: pick a team to win its title game if it gets there">CCG</th>' :
+      (weekInfo().ccg ? '<th class="pick c-pick" title="Conference championship games: pick a team to win its conference championship if it gets there">CCG</th>' :
         '<th class="pick c-pick" title="Each team’s game in week ' + tableWeek() + ': a pick box until it ends, then the result">Wk ' + tableWeek() + '</th>') +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
+      th('ccg', '<abbr title="Chance to play in the conference championship game">Make conf. game</abbr>', 'c-ccg sec') + '</th>' +
       th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
       th('title', 'Win title', 'c-title sec') + '</th>';
   }
@@ -325,7 +326,7 @@
     var set = tg.h >= 0 && tg.a >= 0, inGame = tg.h === x.i || tg.a === x.i, opp = set && inGame ? D.teams[tg.h === x.i ? tg.a : tg.h] : null;
     if (titleOver(tg)) {
       if (!inGame) return '';
-      var won = tg.w === x.i, label = x.t.name + (won ? ' won' : ' lost') + ' the title game' + (opp ? (won ? ' over ' : ' to ') + opp.name : '');
+      var won = tg.w === x.i, label = x.t.name + (won ? ' won' : ' lost') + ' the conference championship' + (opp ? (won ? ' over ' : ' to ') + opp.name : '');
       return '<div class="nx-cell" title="' + esc(label) + '"><span class="nx-res" aria-label="' + esc(label) + '"><b class="res ' + (won ? 'res-w' : 'res-l') + '">' + (won ? 'W' : 'L') + '</b></span>' + (opp ? '<span class="nx-vs" aria-hidden="true">vs ' + esc(opp.ab || opp.name) + '</span>' : '') + '</div>';
     }
     if (set ? !inGame : !(x.r.ccg > 0)) return '';
@@ -335,13 +336,13 @@
   function ccgBox(x, tg, opp, bare) {
     var key = 'ccg:' + tg.conf, pk = st.picks[key], won = pk === x.t.id, lost = !!pk && !won && !!opp && pk === opp.id;
     var other = !!pk && !won && !lost ? D.teams.filter(function (t) { return t.id === pk; })[0] : null;
-    var what = x.t.name + ' in the ' + (CFP.CONF_NAME[tg.conf] || tg.conf) + ' title game' + (opp ? ' vs ' + opp.name : '');
+    var what = x.t.name + ' in the ' + (CFP.CONF_NAME[tg.conf] || tg.conf) + ' Championship' + (opp ? ' vs ' + opp.name : '');
     var label = won ? what + ': picked to win. Press to ' + (opp ? 'pick a loss' : 'clear the pick') : lost ? what + ': picked to lose. Press to clear the pick' :
       (other ? other.name + ' is picked to win this conference. ' : '') + 'No pick for ' + what + '. Press to pick it to win' + (opp ? '' : ' if it gets there');
     var box = '<button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(key) + '" data-team="' + x.t.id + '" data-opp="' + esc(opp ? opp.id : '') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button>';
     if (bare) return '<span class="mini">' + box + '</span>';
     return '<div class="nx-cell"><div class="mini">' + box + '</div>' +
-      '<span class="nx-vs" aria-hidden="true">' + (opp ? 'vs ' + esc(opp.ab || opp.name) : '<abbr title="Chance to reach the title game">' + pct(x.r.ccg) + '</abbr>') + '</span></div>';
+      '<span class="nx-vs" aria-hidden="true">' + (opp ? 'vs ' + esc(opp.ab || opp.name) : '<abbr title="Chance to reach the conference championship game">' + pct(x.r.ccg) + '</abbr>') + '</span></div>';
   }
   // Each team's game in that week: a W/L pick box until the game ends, then its result and score. A team
   // with no game that week (a bye) gets a blank cell.
@@ -393,7 +394,7 @@
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
   var TABLET = matchMedia('(min-width: 600px)');
-  function visibleColumns() { return WIDE.matches || st.expanded ? 11 : TABLET.matches ? 8 : 6; }
+  function visibleColumns() { return WIDE.matches || st.expanded ? 12 : TABLET.matches ? 8 : 6; }
   // The selected ratings' name, as the Ratings menu shows it.
   function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   // ---------- Team pages ----------
@@ -609,10 +610,10 @@
     if (titleOver(tg) ? !inGame : set ? !inGame : !(x.r.ccg > 0)) return '';
     var oi = inGame ? (tg.h === x.i ? tg.a : tg.h) : -1, o = oi >= 0 ? D.teams[oi] : null;
     var day = function (opt) { return new Date(tg.d).toLocaleDateString('en-US', Object.assign({ timeZone: 'America/New_York' }, opt)); };
-    var name = esc(CFP.CONF_ABBR[tg.conf] || CFP.CONF_NAME[tg.conf] || tg.conf) + ' title game';
+    var name = esc(CFP.CONF_ABBR[tg.conf] || CFP.CONF_NAME[tg.conf] || tg.conf) + ' Championship';
     var who = '<span class="tg-vs">' + (o ? 'vs' : '') + '</span>' + (o ? logo(o, 22) + teamLink(oi, '<span class="tg-long">' + esc(o.name) + '</span><span class="tg-short">' + esc(o.ab || o.name) + '</span>') + ' <small class="tg-ccg">' + name + '</small>' : '<span>' + name + '</span>');
     var cell = titleOver(tg) ? '<span class="tg-part"><b class="res ' + (tg.w === x.i ? 'res-w' : 'res-l') + '">' + (tg.w === x.i ? 'W' : 'L') + '</b></span>' :
-      '<span class="tg-part">' + (set ? '' : '<span class="tg-win" title="Chance to reach the title game">' + pct(x.r.ccg) + '</span>') + ccgBox(x, tg, o, true) + '</span>';
+      '<span class="tg-part">' + (set ? '' : '<span class="tg-win" title="Chance to reach the conference championship game">' + pct(x.r.ccg) + '</span>') + ccgBox(x, tg, o, true) + '</span>';
     return '<tr class="tg-ccgrow"><td class="tg-date"><span class="tg-wide">' + day({ weekday: 'short' }) + ', </span>' + day({ month: 'short', day: 'numeric' }) + '</td>' +
       '<td><span class="tg-team">' + who + '</span></td><td class="tg-res"><div class="tg-cell">' + cell + '</div></td></tr>';
   }
@@ -679,7 +680,7 @@
     }).join('');
     return '<table class="tp-table tp-stand"><thead><tr><th scope="col">Team</th>' +
       '<th scope="col"><abbr title="Conference record">Conf</abbr></th><th scope="col"><abbr title="Overall record">Ovr</abbr></th>' +
-      '<th scope="col"><abbr title="Chance to play in the conference championship game">Title game</abbr></th>' +
+      '<th scope="col"><abbr title="Chance to play in the conference championship game">Conf. game</abbr></th>' +
       '<th scope="col"><abbr title="Chance to win the conference championship">Win conf.</abbr></th></tr></thead><tbody>' + body + '</tbody></table>';
   }
   // Everything under the headline odds, in three columns on wide screens: the schedule, then Make CFP over time
@@ -759,7 +760,7 @@
         '<td class="pick">' + weekCell(x) + '</td>' +
         '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +
         shaded(x.r.bye) +
-        (x.t.conf === 'ind' ? '<td class="sec">—</td>' : shaded(x.r.champ)) + shaded(x.r.title) + '</tr>';
+        (x.t.conf === 'ind' ? '<td class="sec">—</td><td class="sec">—</td>' : shaded(x.r.ccg) + shaded(x.r.champ)) + shaded(x.r.title) + '</tr>';
       return r;
     }).join('');
   }

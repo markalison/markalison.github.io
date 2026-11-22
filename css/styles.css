@@ -271,12 +271,12 @@ th.pick, td.pick { text-align: center; }
   .odds-table:not(.expanded) th.c-cfp, .odds-table:not(.expanded) td.odds-cell { padding-inline: 4px; text-align: center; white-space: normal; }
   .odds-table:not(.expanded) .odds { justify-items: center; }
   .odds-table:not(.expanded) .odds .v { text-align: center; }
-  .odds-table.expanded { min-width: 860px; }
+  .odds-table.expanded { min-width: 932px; }
   .odds-table.expanded .sec, .odds-table.expanded .tc { display: table-cell; }
   .odds-table.expanded .c-pick { width: 56px; } .odds-table.expanded .c-cfp { width: 80px; }
   .odds-table.expanded th { white-space: normal; }
   .odds-table.expanded .c-team { width: 160px; }
-  .odds-table.expanded .c-bye, .odds-table.expanded .c-conf, .odds-table.expanded .c-title { width: 72px; }
+  .odds-table.expanded .c-bye, .odds-table.expanded .c-ccg, .odds-table.expanded .c-conf, .odds-table.expanded .c-title { width: 72px; }
   .odds-table.expanded .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); }
   .odds-table.expanded th.team-col { z-index: 4; }
 }
@@ -287,7 +287,7 @@ th.pick, td.pick { text-align: center; }
 }
 @media (min-width: 900px) {
   /* Each column sized to its content; headings wrap onto two lines rather than widening a column. */
-  .odds-table { min-width: 834px; }
+  .odds-table { min-width: 906px; }
   .odds-table .sec, .odds-table .tc { display: table-cell; }
   .c-cn { width: 120px; } .c-rec { width: 60px; } .c-idx { width: 68px; }
   .mini button.pick-box { width: 30px; height: 30px; }
@@ -295,7 +295,7 @@ th.pick, td.pick { text-align: center; }
   :root { --rk-w: 48px; }
   .c-team { width: 190px; }
   /* Pick through Win title share one width; the last also holds the end padding. */
-  .c-pick, .c-cfp, .c-bye, .c-conf, .c-title { width: 72px; }
+  .c-pick, .c-cfp, .c-bye, .c-ccg, .c-conf, .c-title { width: 72px; }
   .c-title { width: 84px; }
   .odds-table th:first-child, .odds-table tr:not(.detail) > td:first-child { padding-left: var(--s4); }
   .odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s2); }

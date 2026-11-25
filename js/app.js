@@ -6,7 +6,7 @@
   // 40,000 seasons gives about +/-0.5 points at 50% odds in roughly a second. More adds wait for little precision.
   var SIMS = 40000;
   var D = embedded.D, results = embedded.results, simsNote = {};
-  var st = { mode: 'blend', picks: {}, bkPicks: {}, sort: 'team', dir: 1, team: null, conf: '', view: 'all', q: '', live: 'pending', running: false };
+  var st = { mode: 'blend', picks: {}, bkPicks: {}, bkRoll: {}, sort: 'team', dir: 1, team: null, conf: '', view: 'all', q: '', live: 'pending', running: false };
   var schedCache = {}, worker = null;
   var $ = function (id) { return document.getElementById(id); };
   // Preload the scoreboard in its live order. The last live game state is cached per build, so a reload paints
@@ -334,13 +334,25 @@
     return ccgBox(x, tg, opp);
   }
   // bare: just the box (the team page's schedule), without the table cell's caption.
+  // One team's title game pick: its own, or the opposite of its opponent's once the matchup is set.
+  function ccgKey(conf, id) { return 'ccg:' + conf + ':' + id; }
+  function ccgPick(conf, id, oppId) {
+    var own = st.picks[ccgKey(conf, id)], theirs = oppId ? st.picks[ccgKey(conf, oppId)] : null;
+    return own || (theirs === 'W' ? 'L' : theirs === 'L' ? 'W' : '');
+  }
+  // Each press moves a team through win, loss and blank. Only one team a conference can be picked to win; any
+  // number can be picked to lose. Once the matchup is set, its two teams share one pick.
+  function cycleCcg(conf, id, oppId) {
+    var next = { '': 'W', W: 'L', L: '' }[ccgPick(conf, id, oppId)], pre = 'ccg:' + conf + ':';
+    if (oppId) delete st.picks[ccgKey(conf, oppId)];
+    if (next === 'W') Object.keys(st.picks).forEach(function (k) { if (k.indexOf(pre) === 0 && st.picks[k] === 'W') delete st.picks[k]; });
+    if (next) st.picks[ccgKey(conf, id)] = next; else delete st.picks[ccgKey(conf, id)];
+  }
   function ccgBox(x, tg, opp, bare) {
-    var key = 'ccg:' + tg.conf, pk = st.picks[key], won = pk === x.t.id, lost = !!pk && !won && !!opp && pk === opp.id;
-    var other = !!pk && !won && !lost ? D.teams.filter(function (t) { return t.id === pk; })[0] : null;
-    var what = x.t.name + ' in the ' + (CFP.CONF_NAME[tg.conf] || tg.conf) + ' Championship' + (opp ? ' vs ' + opp.name : '');
-    var label = won ? what + ': picked to win. Press to ' + (opp ? 'pick a loss' : 'clear the pick') : lost ? what + ': picked to lose. Press to clear the pick' :
-      (other ? other.name + ' is picked to win this conference. ' : '') + 'No pick for ' + what + '. Press to pick it to win' + (opp ? '' : ' if it gets there');
-    var box = '<button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(key) + '" data-team="' + x.t.id + '" data-opp="' + esc(opp ? opp.id : '') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button>';
+    var pk = ccgPick(tg.conf, x.t.id, opp && opp.id), won = pk === 'W', lost = pk === 'L';
+    var what = x.t.name + ' in the ' + (CFP.CONF_NAME[tg.conf] || tg.conf) + ' Championship' + (opp ? ' vs ' + opp.name : ''), there = opp ? '' : ' if it gets there';
+    var label = won ? what + ': picked to win. Press to pick a loss' + there : lost ? what + ': picked to lose. Press to clear the pick' : 'No pick for ' + what + '. Press to pick a win' + there;
+    var box = '<button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-ccg="' + esc(tg.conf) + '" data-team="' + x.t.id + '" data-opp="' + esc(opp ? opp.id : '') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button>';
     if (bare) return '<span class="mini">' + box + '</span>';
     return '<div class="nx-cell"><div class="mini">' + box + '</div>' +
       '<span class="nx-vs" aria-hidden="true">' + (opp ? 'vs ' + esc(opp.ab || opp.name) : '<abbr title="Chance to reach the conference championship game">' + pct(x.r.ccg) + '</abbr>') + '</span></div>';
@@ -417,6 +429,10 @@
   }
   function teamHref(i) { return '#team/' + slugs().of[i]; }
   // A team's name as a link to its page. Teams outside FBS have no page, so theirs stays plain text.
+  // A conference's page: #conf/<name> (#conf/big-ten).
+  function confSlug(c) { return (CFP.CONF_NAME[c] || c).toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+  function confHref(c) { return '#conf/' + confSlug(c); }
+  function confLink(c, html) { return '<a class="tlink" href="' + confHref(c) + '">' + html + '</a>'; }
   function teamLink(i, html) { return i < D.fbs ? '<a class="tlink" href="' + teamHref(i) + '">' + html + '</a>' : html; }
   function splitRow(label, make) {
     return '<tr><th scope="row">' + label + '</th><td>' + pct(make) + '</td><td>' + pct(make == null ? null : 1 - make) + '</td></tr>';
@@ -535,7 +551,8 @@
       if (!list.length) return '—';
       return '<span class="rs-teams">' + list.map(function (e) {
         var o = D.teams[e.o], what = (e.site === -1 ? 'at ' : 'vs ') + o.name + (o.rank ? ' (No. ' + o.rank + ')' : '');
-        return '<span class="rs-team" title="' + esc(what) + '" aria-label="' + esc(what) + '">' + logo(o, 26) + '</span>';
+        return e.o < D.fbs ? '<a class="rs-team" href="' + teamHref(e.o) + '" title="' + esc(what) + '" aria-label="' + esc(what) + '">' + logo(o, 26) + '</a>' :
+          '<span class="rs-team" title="' + esc(what) + '" aria-label="' + esc(what) + '">' + logo(o, 26) + '</span>';
       }).join('') + '</span>';
     }
     function tile(label, title, value) {
@@ -638,13 +655,13 @@
       poll('Coaches', 'AFCA Coaches Poll', t.coach && t.coach.r, t.coach && t.coach.p, true) +
     '</dl>';
     return '<div class="tp-head"' + (t.color && /^[0-9a-f]{6}$/i.test(t.color) ? ' style="--tc:#' + t.color + '"' : '') + '><div class="tp-id">' + logo(t, 64) +
-      '<div class="tp-name"><h2>' + esc(t.full || t.name) + '</h2><p>' + confLogo(t.conf) + esc(conf) + '</p></div></div>' + stand + resumeBlock(x) + '</div>';
+      '<div class="tp-name"><h2>' + esc(t.full || t.name) + '</h2><p>' + confLink(t.conf, confLogo(t.conf) + esc(conf)) + '</p></div></div>' + stand + resumeBlock(x) + '</div>';
   }
   // The headline odds, as tiles shaded like the table's cells. An independent has no conference to win.
   function teamOdds(x) {
     var r = x.r, ind = x.t.conf === 'ind', rs = resumes().teams[x.i];
     function tile(label, title, v, text, cls) {
-      // A chance shades its cell green by its value, like the table's cells; a number that isn't one (Avg seed) doesn't.
+      // A chance shades its cell green by its value, like the table's cells.
       return '<div' + (cls ? ' class="' + cls + '"' : '') + (v == null ? '' : ' style="--p:' + v.toFixed(3) + '"') + '><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + (text != null ? text : pct(v)) + '</dd></div>';
     }
     return '<dl class="rs-tiles tp-odds">' +
@@ -654,7 +671,6 @@
       tile('Make CFP', 'Chance to make the 12-team playoff', r.cfp, null, 'tp-lead') +
       tile('Win CFP', 'Chance to win the national championship', r.title) +
       tile('Win out', 'Chance to win every regular-season game left (' + rs.nLeft + ')', rs.winOut, rs.winOut == null ? '\u2014' : null) +
-      tile('Avg seed', 'Average playoff seed in the simulations where they make the CFP', null, r.seed ? r.seed.toFixed(1) : '\u2014') +
     '</dl>';
   }
   // The team's conference in order of conference record (then overall record, then the better chance to reach
@@ -693,14 +709,71 @@
     var conf = esc(CFP.CONF_NAME[x.t.conf] || x.t.conf);
     var sched = '<section class="tp-card tp-1" aria-label="Schedule and scores">' + cardHead('Schedule and scores', '<b>' + x.rec.text + '</b>' + (ind ? '' : ' · ' + x.rec.cw + '-' + x.rec.cl + ' conf.')) + teamSchedule(x) + '</section>';
     var cfp = '<section class="tp-card tp-2">' + oddsChartBlock(x.i, 'Make CFP', 'Massey + Sagarin') + '</section>';
-    var seed = '<section class="tp-card tp-3">' + cardHead('Projected seed', x.r.seed ? 'avg. <b>' + x.r.seed.toFixed(1) + '</b>' : '') +
+    var seed = '<section class="tp-card tp-3">' + cardHead('Projected seed', '') +
       (x.r.seed ? seedChart(x) + '<p class="tp-foot">Share of all simulations at each seed; the bars add up to the Make CFP chance.</p>' : '<p class="ap-none">Not in the field in any simulation.</p>') + '</section>';
-    var stand = ind ? '' : '<section class="tp-card tp-4">' + cardHead(confLogo(x.t.conf) + conf + ' standings', '') + confStandings(x) + '</section>';
+    var stand = ind ? '' : '<section class="tp-card tp-4">' + cardHead(confLink(x.t.conf, confLogo(x.t.conf) + conf + ' standings'), '') + confStandings(x) + '</section>';
     return '<div class="tp-grid"><div class="tp-col">' + sched + '</div><div class="tp-col">' + cfp + (ind ? '' : seed) + '</div><div class="tp-col">' + (ind ? seed : stand) + '</div></div>';
+  }
+  // ---------- Conference pages ----------
+  // Each conference's own order for breaking a tie for its title game, in short (the rules engine.js TB plays).
+  var TIEBREAK = {
+    sec: ['Head-to-head', 'Record vs common SEC opponents', 'Record vs the best-placed common opponent, then down the standings', 'SEC opponents’ average conference win %', 'Scoring margin vs SEC opponents, capped (estimated here from ratings)', 'Draw'],
+    big10: ['Head-to-head', 'Record vs common Big Ten opponents', 'Record vs the best-placed common opponent, then down the standings', 'Big Ten opponents’ combined conference win %', 'SportSource rating (estimated here)', 'Draw'],
+    big12: ['Head-to-head', 'Win % vs common Big 12 opponents', 'Win % vs the best-placed common opponent, then down the standings', 'Big 12 opponents’ combined conference win %', 'Total wins (one FCS win counts)', 'SportSource rating (estimated here)', 'Coin toss'],
+    acc: ['Teams with a different number of ACC games are tied with the leader on equal wins or equal losses', 'Head-to-head', 'SportSource Team Success ranking (estimated here)', 'Draw'],
+    pac12: ['Head-to-head', 'Two teams: record down the standings, then common opponents, then CFP rank', 'Three or more: common opponents, then down the standings, then opponents’ win %', 'SportSource rating (estimated here)', 'Coin toss'],
+    american: ['Head-to-head', 'Highest CFP-ranked team that won its final game', 'Average of four computer rankings (estimated here)', 'Win % vs common opponents', 'Overall win %', 'Coin toss'],
+    usa: ['Head-to-head', 'Win % vs common C-USA opponents', 'Record vs the best-placed common opponent, then down the standings', 'Average of four computer rankings (estimated here)', 'Opponents’ combined conference win %', 'Coin toss'],
+    midam: ['Head-to-head (a tied team that lost to all the others is out)', 'Opponents’ combined conference win %', 'SportSource rating (estimated here)', 'Draw'],
+    mwest: ['Head-to-head', 'Highest CFP-ranked team that won its final game', 'Average of four computer rankings (estimated here)', 'Overall win %', 'Record down the standings', 'Win % vs common opponents', 'Coin toss'],
+    belt: ['Each division sends its champion', 'Head-to-head', 'Division record', 'Record down the division standings', 'Win % vs common opponents in the other division', 'Highest CFP-ranked team, if it won its final game', 'Average of four computer rankings (estimated here)', 'Coin toss']
+  };
+  // Where a conference's written rules for 2026 were incomplete or unclear.
+  var TB_NOTE = {
+    mwest: 'No 2026 procedure has been published that we could find; this is 2025’s.',
+    midam: 'From the MAC’s current page. In 2025 it also compared records against common opponents, and one outside site says 2026 does too.',
+    sec: 'Adopted in 2024; no newer version found.', big10: 'Adopted in 2024; no newer version found.', big12: 'Adopted in 2024; no newer version found.',
+    american: 'From the 2025 handbook.'
+  };
+  function confKeys() { var m = {}; for (var i = 0; i < D.fbs; i++) m[D.teams[i].conf] = 1; return Object.keys(m).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }); }
+  function confTable(rows, conf, ind) {
+    var divs = {}, share = function (w, l) { return w + l ? w / (w + l) : 0; }, info = weekInfo();
+    rows.sort(function (a, b) {
+      return ind ? b.r.cfp - a.r.cfp : share(b.rec.cw, b.rec.cl) - share(a.rec.cw, a.rec.cl) || b.rec.cw - a.rec.cw || a.rec.cl - b.rec.cl ||
+        share(b.rec.w, b.rec.l) - share(a.rec.w, a.rec.l) || b.r.ccg - a.r.ccg;
+    });
+    function cell(v) { return '<td class="st-pct' + (v < 0.005 ? ' st-low' : '') + '" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</td>'; }
+    function line(y) {
+      var name = (y.t.rank ? '<small class="lg-rank">' + y.t.rank + '</small>' : '') + '<span class="tg-long">' + esc(y.t.name) + '</span><span class="tg-short">' + esc(y.t.ab || y.t.name) + '</span>';
+      return '<tr><td><span class="tg-team">' + logo(y.t, 22) + teamLink(y.i, name) + '</span></td>' + (ind ? '' : '<td>' + y.rec.cw + '-' + y.rec.cl + '</td>') + '<td class="cf-wide">' + y.rec.text + '</td>' +
+        '<td class="pick">' + weekCell(y) + '</td>' + (ind ? '' : cell(y.r.ccg) + cell(y.r.champ)) + cell(y.r.cfp) + cell(y.r.title).replace('st-pct', 'st-pct cf-wide') + '</tr>';
+    }
+    rows.forEach(function (y) { var d = y.t.div || ''; (divs[d] = divs[d] || []).push(y); });
+    var names = Object.keys(divs).sort(), n = ind ? 5 : 8;
+    return '<div class="table-wrap"><table class="tp-table tp-stand cf-table"><thead><tr><th scope="col">Team</th>' + (ind ? '' : '<th scope="col">Conf</th>') + '<th scope="col" class="cf-wide">Ovr</th><th scope="col" class="pick">' + (info.ccg ? 'CCG' : 'Wk ' + info.wk) + '</th>' +
+      (ind ? '' : '<th scope="col">Make conf</th><th scope="col">Win conf</th>') + '<th scope="col">Make CFP</th><th scope="col" class="cf-wide">Win CFP</th></tr></thead><tbody>' +
+      names.map(function (d) { return (names.length > 1 ? '<tr class="st-div"><th colspan="' + n + '" scope="rowgroup">' + esc(d.replace(/^.* - /, '')) + '</th></tr>' : '') + divs[d].map(line).join(''); }).join('') + '</tbody></table></div>';
+  }
+  function renderConf() {
+    if ($('page-conf').hidden) return;
+    var c = st.confKey, ind = c === 'ind', rows = buildRows().filter(function (x) { return x.t.conf === c; }), name = CFP.CONF_NAME[c] || c;
+    var sum = function (f) { return rows.reduce(function (s, x) { return s + f(x); }, 0); };
+    var ranked = rows.filter(function (x) { return x.t.rank; }).length, bids = sum(function (x) { return x.r.cfp; }), title = sum(function (x) { return x.r.title; });
+    var fav = rows.slice().sort(function (a, b) { return b.r.champ - a.r.champ; })[0];
+    var info = weekInfo(), games = D.games.filter(function (g) { return g.wk === info.wk && (D.teams[g.h].conf === c || D.teams[g.a].conf === c); }).sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    var tile = function (l, v, t) { return '<div><dt><abbr title="' + t + '">' + l + '</abbr></dt><dd>' + v + '</dd></div>'; };
+    $('conf-page').innerHTML = '<div class="tp-head cf-head"><div class="tp-id">' + confLogo(c) + '<div class="tp-name"><h2>' + esc(ind ? 'Independents' : name) + '</h2></div></div><dl class="tp-standing">' +
+        tile('Ranked', ranked, 'Teams in the current CFP top 25') + tile('Bids', bids.toFixed(1), 'Average number of teams in the 12-team playoff') + tile('Win CFP', pct(title), 'Chance that one of its teams wins the national championship') +
+        (ind || !fav ? '' : tile('Favorite', '<a class="tlink cf-fav" href="' + teamHref(fav.i) + '">' + logo(fav.t, 26) + pct(fav.r.champ) + '</a>', 'Most likely conference champion: ' + esc(fav.t.name))) + '</dl></div>' +
+      '<section class="tp-card">' + cardHead(ind ? 'Teams' : 'Standings', '') + confTable(rows, c, ind) + '</section>' +
+      (games.length ? '<section class="tp-card cf-games">' + cardHead('Week ' + info.wk + ' games', games.length + (games.length === 1 ? ' game' : ' games')) + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></section>' : '') +
+      (TIEBREAK[c] ? '<section class="tp-card">' + cardHead('Title game tiebreakers', '') + '<ol class="cf-tb">' + TIEBREAK[c].map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' + (TB_NOTE[c] ? '<p class="tp-foot">' + esc(TB_NOTE[c]) + '</p>' : '') + '</section>' : '');
+    $('conf-nav').innerHTML = confKeys().map(function (k) { return '<option value="' + k + '"' + (k === c ? ' selected' : '') + '>' + esc(k === 'ind' ? 'Independents' : CFP.CONF_NAME[k] || k) + '</option>'; }).join('');
   }
   // The team whose page is open, by its place in the current data (ESPN updates can reorder teams).
   function teamIndex() { for (var i = 0; i < D.fbs; i++) if (D.teams[i].id === st.team) return i; return -1; }
   function renderTeam() {
+    renderConf();
     if ($('page-team').hidden) return;
     var i = teamIndex(), R = res();
     if (i < 0) { $('team-page').innerHTML = '<p class="live-empty">That team isn\u2019t in this season\u2019s data. <a href="#rankings">See all teams</a>.</p>'; return; }
@@ -722,7 +795,7 @@
     return ' <b>CFP</b> is the College Football Playoff committee ranking' + (week ? ' (' + esc(week) + ')' : '') + '.' + (projOn() ? ' <b>Proj.</b> is our projection of the next ranking' + (since ? ', with the ' + since + ' games played since' : '') + '.' : '');
   }
   function renderBoardTitle(count) {
-    $('board-title').innerHTML = (st.conf ? confLogo(st.conf) : '') + esc(st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view]);
+    $('board-title').innerHTML = st.conf ? confLink(st.conf, confLogo(st.conf) + esc(CFP.CONF_NAME[st.conf] || st.conf)) : esc(VIEW_NAME[st.view]);
     $('board-count').textContent = count + (count === 1 ? ' team' : ' teams') + (st.q.trim() ? ' matching “' + st.q.trim() + '”' : '');
   }
   // A percentage column cell, shaded by its value like Make CFP.
@@ -731,6 +804,7 @@
   function projCell(x) {
     if (!x.proj || x.proj > 25) return '<td class="tc c-prk-cell"></td>';
     var cur = x.t.rank, mv = cur ? cur - x.proj : null;
+    // The move sits under the number (styles.css).
     var arrow = mv == null ? '<small class="mv up" title="New in the top 25">new</small>' : mv > 0 ? '<small class="mv up">▲' + mv + '</small>' : mv < 0 ? '<small class="mv down">▼' + (-mv) + '</small>' : '';
     return '<td class="tc c-prk-cell">' + x.proj + arrow + '</td>';
   }
@@ -755,7 +829,7 @@
       var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' + projCell(x) +
         '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
         '<span><a class="tname" href="' + teamHref(x.i) + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></a></span></div></td>' +
-        '<td class="l c-cn-cell"><span class="cn-long">' + esc(CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span></td>' +
+        '<td class="l c-cn-cell">' + confLink(x.t.conf, '<span class="cn-long">' + esc(CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span>') + '</td>' +
         '<td class="num rec">' + x.rec.text + '</td>' +
         '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + weekCell(x) + '</td>' +
@@ -821,15 +895,18 @@
       return '<div class="bk-team tbd" aria-label="To be decided: ' + esc(slot.tbd) + '"></div>';
     }
     var inner = '<span class="bk-seed">' + slot.seed + '</span>' + logo(slot.x.t, 22) +
-      '<span class="bk-name">' + esc(slot.x.t.name) + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';
+      '<span class="bk-name">' + teamLink(slot.x.i, esc(slot.x.t.name)) + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';
     if (opp.tbd) return '<div class="bk-team' + (cls ? ' ' + cls : '') + '">' + inner + '</div>';
     var picked = st.bkPicks[key] === slot.seed, lost = st.bkPicks[key] === opp.seed;
     var label = picked ? slot.x.t.name + ' picked to win. Press to pick a loss' : lost ? slot.x.t.name + ' picked to lose. Press to clear the pick' : 'No pick for ' + slot.x.t.name + ' vs ' + opp.x.t.name + '. Press to pick a win';
     // The same box as the Rankings table: W for the team you picked, L for its opponent, empty otherwise.
-    var box = '<span class="mini"><span class="pick-box' + (picked ? ' pick-w' : lost ? ' pick-l' : '') + '" aria-hidden="true">' + (picked ? 'W' : lost ? 'L' : '') + '</span></span>';
-    return '<button type="button" class="bk-team picks' + (cls ? ' ' + cls : '') + '" data-bk="' + key + '" data-seed="' + slot.seed + '" data-opp="' + opp.seed + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' + inner + box + '</button>';
+    // A press anywhere on the row but the name works it; the name goes to the team's page.
+    var box = '<span class="mini"><button type="button" class="pick-box' + (picked ? ' pick-w' : lost ? ' pick-l' : '') + '" data-bk="' + key + '" data-seed="' + slot.seed + '" data-opp="' + opp.seed + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (picked ? 'W' : lost ? 'L' : '') + '</button></span>';
+    return '<div class="bk-team picks' + (cls ? ' ' + cls : '') + '" data-bkrow="1">' + inner + box + '</div>';
   }
-  // A game is decided by the viewer's pick, or by the favorite when Simulate games is on.
+  // A game is decided by the viewer's pick, or, when Simulate games is on, by one random run of it: each team
+  // wins as often as its chance, so upsets happen. A run is kept until it's simulated again.
+  function roll(key) { if (st.bkRoll[key] == null) st.bkRoll[key] = Math.random(); return st.bkRoll[key]; }
   // Win chances show for every decided game. A winner carries its chance of getting this far.
   function bracketGame(key, hi, lo, home, feeds, where) {
     var known = !hi.tbd && !lo.tbd;
@@ -837,7 +914,7 @@
     // A pick whose team is no longer in this game (an earlier pick changed) is dropped, so it can't return unseen.
     if (pickSeed != null && !picked) delete st.bkPicks[key];
     var p = known && (st.bkSim || picked) ? winChance(hi.x, lo.x, home) : null;
-    var win = picked || (p != null ? (p >= 0.5 ? hi : lo) : null);
+    var win = picked || (p != null ? (roll(key) < p ? hi : lo) : null);
     var html = '<article class="bk-game">' + (where ? '<p class="bk-where">' + where + '</p>' : '') + '<div class="bk-box">' +
       bracketRow(key, hi, lo, win ? (win === hi ? 'win' : 'lose') : '', p, home) +
       bracketRow(key, lo, hi, win ? (win === lo ? 'win' : 'lose') : '', p == null ? null : 1 - p, false) +
@@ -927,9 +1004,10 @@
   function renderBracket() {
     var field = projectedField().field, sim = !!st.bkSim;
     $('bk-sim').setAttribute('aria-pressed', sim);
-    $('bk-sim').textContent = sim ? 'Show seeds only' : 'Simulate games';
+    $('bk-sim').textContent = sim ? 'Simulate again' : 'Simulate games';
+    $('bk-off').hidden = !sim;
     $('bracket-note').textContent = sim
-      ? 'The favorite in each game advances unless you pick a team. Win chances come from the two ratings, with home field for the higher seed in the first round.'
+      ? 'One random run of the games: each team wins as often as its chance, so upsets happen. Games you pick stay as picked.'
       : 'Select a team to advance it. Each game you decide shows both teams’ chance to win, from their ratings.';
     if (field.length < 12) { $('bracket').innerHTML = ''; return; }
     var s = field.map(function (x, i) { return { seed: i + 1, x: x }; });
@@ -952,12 +1030,12 @@
     var champCard = '';
     if (champ) {
       var t = champ.x.t;
-      champCard = '<div class="bk-champ"><div class="bk-champ-team">' + logo(t, 40) + '<div><p class="bk-label">' + (st.bkPicks.f === champ.seed ? 'Your champion' : 'Projected champion') + '</p><p class="bk-champ-name">' + esc(t.name) + '</p></div></div>' +
+      champCard = '<div class="bk-champ"><div class="bk-champ-team">' + logo(t, 40) + '<div><p class="bk-label">' + (st.bkPicks.f === champ.seed ? 'Your champion' : 'Simulated champion') + '</p><p class="bk-champ-name">' + teamLink(champ.x.i, esc(t.name)) + '</p></div></div>' +
         '<p><b>' + esc(t.name) + '</b> wins every game on this path ' + pct(champ.path) + ' of the time, using each game’s win chance. Across all simulations it wins the title ' + pct(champ.x.r.title) + ' of the time.</p></div>';
     }
     $('bracket').innerHTML = champCard +
       '<div class="bk-rounds" id="bk-rounds">' + round('First round', r1) + round('Quarterfinals', qf) + round('Semifinals', sf) + round('Championship', [fin]) + '</div>' +
-      (sim ? '<div class="bk-titles"><h3>Title odds</h3><ol>' + titles.map(function (x) { return '<li>' + logo(x.x.t, 20) + '<span>' + esc(x.x.t.name) + '</span><b>' + pct(x.x.r.title) + '</b></li>'; }).join('') + '</ol></div>' : '');
+      (sim ? '<div class="bk-titles"><h3>Title odds</h3><ol>' + titles.map(function (x) { return '<li>' + logo(x.x.t, 20) + '<span>' + teamLink(x.x.i, esc(x.x.t.name)) + '</span><b>' + pct(x.x.r.title) + '</b></li>'; }).join('') + '</ol></div>' : '');
     drawConnectors();
   }
   // Lines from each game to the one its winner plays next. Only drawn when the rounds sit side by side.
@@ -1010,10 +1088,15 @@
     var done = g.s === 'post', win = '';
     // A shaded odds tile, or a dash when there's no number.
     function tile(v, cls) { cls = cls ? ' ' + cls : ''; return v == null ? '<div class="lg-num' + cls + '">—</div>' : '<div class="lg-cfp' + cls + '" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; }
+    var over = sbStat(g) === 'post', box = '';
     if (!done) {
-      if (st.picks[g.id]) win = st.picks[g.id] === t.id ? 'Pick' : '';
-      else if (nx && nx.id === g.id) win = Math.round(nx.p * 100) + '%';
-      else win = '—';
+      var hp = g.s === 'pre' ? pregameHome(g) : null;
+      win = nx && nx.id === g.id ? Math.round(nx.p * 100) + '%' : hp != null ? Math.round((g.h === i ? hp : 1 - hp) * 100) + '%' : '—';
+    }
+    if (!over) {
+      var o = D.teams[g.h === i ? g.a : g.h], pk = st.picks[g.id], won = pk === t.id, lost = !!pk && !won, what = t.name + ' vs ' + o.name;
+      var say = won ? what + ': picked to win. Press to pick a loss' : lost ? what + ': picked to lose. Press to clear the pick' : 'No pick for ' + what + '. Press to pick a win';
+      box = '<span class="mini lg-pick"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + esc(t.id) + '" data-opp="' + esc(o.id) + '" aria-label="' + esc(say) + '" title="' + esc(say) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>';
     }
     // An FBS team's name links to its team page.
     var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + teamLink(i, (t.rank ? '<small class="lg-rank">' + t.rank + '</small>' : '') + esc(t.ab || t.name)) + (isFbs ? ' <small class="lg-rec">(' + record(i).text + ')</small>' : '') + '</span></div>';
@@ -1022,12 +1105,12 @@
       var ifW = null, ifL = null;
       if (r && st.picks[g.id]) { if (st.picks[g.id] === t.id) ifW = r.cfp; else ifL = r.cfp; }
       else if (r) { ifW = r.ifNext; ifL = r.ifLose; }
-      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.cfp : null) + tile(ifW, 'lg-if') + tile(ifL, 'lg-if');
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.cfp : null) + tile(ifW, 'lg-if') + tile(ifL, 'lg-if') + box;
     }
     return name +
       '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + (score == null ? '' : score) + '</div>' +
       '<div class="lg-num">' + win + '</div>' +
-      tile(r ? r.cfp : null) + tile(r ? r.ifNext : null, 'lg-if') + tile(r ? r.ifLose : null, 'lg-if');
+      tile(r ? r.cfp : null) + tile(r ? r.ifNext : null, 'lg-if') + tile(r ? r.ifLose : null, 'lg-if') + box;
   }
   // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Massey rating.
   function pregameHome(g) {
@@ -1092,8 +1175,8 @@
         wd + ', ' + (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b>' + tv : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span class="lg-when">' + tv + '<span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
-      (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
-        '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">' + (isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>') +
+      (isPre ? '<div class="lg-rows pre can-pick"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span><span class="h">Pick</span>' :
+        '<div class="lg-rows inplay' + (isLive ? ' can-pick' : '') + '"><span></span><span class="h">Score</span><span class="h">' + (isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' + (isLive ? '<span class="h">Pick</span>' : '')) +
         liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
       '</div>' +
     '</article>';
@@ -1269,12 +1352,13 @@
         '<p class="live-empty">No ' + who + 'games this week.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
-  var PAGES = { rankings: 'Playoff Odds Board', playoff: 'Playoff bracket · Playoff Odds Board', scoreboard: 'Scores · Playoff Odds Board', team: 'Team · Playoff Odds Board' };
+  var PAGES = { rankings: 'Playoff Odds Board', playoff: 'Playoff bracket · Playoff Odds Board', scoreboard: 'Scores · Playoff Odds Board', team: 'Team · Playoff Odds Board', conf: 'Conference · Playoff Odds Board' };
   var INTRO = {
     rankings: ['College Football Playoff odds', 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.'],
     playoff: ['Projected playoff', 'The most likely 12-team field in its bracket. Simulate the games to see who’s favored in each round.'],
     scoreboard: ['Scores', 'Today\u2019s games, with each team\u2019s win chance and what the result means for its playoff odds.'],
-    team: ['Team', 'One team\u2019s schedule, scores and playoff odds.']
+    team: ['Team', 'One team\u2019s schedule, scores and playoff odds.'],
+    conf: ['Conference', 'One conference\u2019s standings, games and playoff odds.']
   };
   var OLD_HASH = { odds: 'rankings', live: 'scoreboard', scores: 'scoreboard', history: 'rankings' }; // names used by earlier versions of the site
   function showPage() {
@@ -1286,17 +1370,28 @@
     if (tm) { try { ti = slugs().at[decodeURIComponent(tm[1]).toLowerCase()]; } catch (e) {} p = ti == null ? 'rankings' : 'team'; }
     else if (!PAGES[p] || p === 'team') p = 'scoreboard'; // Scores is the landing view
     st.teamView = tm && tm[2] ? 'history' : 'season';
+    // A conference's page: #conf/<name>.
+    var cm = /^conf\/([^/]+)\/?$/.exec(hash), ck = cm ? confKeys().filter(function (k) { return confSlug(k) === cm[1].toLowerCase(); })[0] : null;
+    if (cm) p = ck ? 'conf' : 'rankings';
+    else if (p === 'conf') p = 'rankings';
+    if (ck) st.confKey = ck;
     var team = p === 'team' ? D.teams[ti] : null;
     if (team) st.team = team.id;
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       // A team's page sits under Rankings.
-      if (a.dataset.page === (team ? 'rankings' : p)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      if (a.dataset.page === (team || p === 'conf' ? 'rankings' : p)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     // Each view gets its own title and intro.
     var hist = !!team && st.teamView === 'history';
     document.title = team ? team.name + (hist ? ' history' : ' playoff odds') + ' · Playoff Odds Board' : PAGES[p];
     $('page-title').textContent = team ? team.name + (hist ? ' history' : ' playoff odds') : INTRO[p][0];
+    if (p === 'conf') {
+      var cn = ck === 'ind' ? 'Independents' : CFP.CONF_NAME[ck] || ck;
+      document.title = cn + ' football standings and playoff odds · Playoff Odds Board';
+      $('page-title').textContent = cn + ' standings and playoff odds';
+      renderConf();
+    }
     if (team) {
       // The two views of a team, as buttons at the top of its page. The ratings menu only matters for this season.
       var href = teamHref(ti), view = function (v, label, to) { return '<a href="' + to + '"' + (st.teamView === v ? ' aria-current="page"' : '') + '>' + label + '</a>'; };
@@ -1372,7 +1467,7 @@
         var open = {};
         D.games.forEach(function (g) { if (g.s !== 'post') open[g.id] = 1; });
         D.titles.forEach(function (t) { if (!titleOver(t)) open['ccg:' + t.conf] = 1; });
-        Object.keys(st.picks).forEach(function (k) { if (!open[k]) delete st.picks[k]; }); // that game has finished
+        Object.keys(st.picks).forEach(function (k) { if (!open[k.indexOf('ccg:') === 0 ? k.split(':').slice(0, 2).join(':') : k]) delete st.picks[k]; }); // that game has finished
       }
       lastRes = result;
       worker = null;
@@ -1486,7 +1581,8 @@
     else if (to >= 0) { opts[to].focus(); e.preventDefault(); }
   });
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('button');
+    var b = e.target.closest('button'), row = b || e.target.closest('a') ? null : e.target.closest('[data-bkrow]');
+    if (row) b = row.querySelector('[data-bk]');
     if (!b) return;
     if (b.dataset.picker) { if (st.pickOpen === b.dataset.picker) closePicker(true); else openPicker(b.dataset.picker); return; }
     if (b.dataset.pickValue != null) {
@@ -1510,14 +1606,13 @@
       st.view = b.dataset.view;
       renderViewControls();
       renderTable();
-    } else if (b.dataset.pick) {
+    } else if (b.dataset.pick || b.dataset.ccg) {
       lockOrder();
       // Each press moves this team through blank, win, loss and back to blank.
-      // A conference title pick before the matchup is set has no opponent: it moves through win and blank,
-      // and picking a team replaces another team's pick in that conference.
       var current = st.picks[b.dataset.pick], team = b.dataset.team, opp = b.dataset.opp;
-      if (!current || (!opp && current !== team)) st.picks[b.dataset.pick] = team;
-      else if (current === team && opp) st.picks[b.dataset.pick] = opp;
+      if (b.dataset.ccg) cycleCcg(b.dataset.ccg, team, opp);
+      else if (!current) st.picks[b.dataset.pick] = team;
+      else if (current === team) st.picks[b.dataset.pick] = opp;
       else delete st.picks[b.dataset.pick];
       st.quiet = false;
       renderPicksBar();
@@ -1549,8 +1644,9 @@
     } else if (b.id === 'bk-clear') {
       st.bkPicks = {};
       renderBracket();
-    } else if (b.id === 'bk-sim') {
-      st.bkSim = !st.bkSim;
+    } else if (b.id === 'bk-sim' || b.id === 'bk-off') {
+      st.bkSim = b.id === 'bk-sim';
+      st.bkRoll = {};
       renderBracket();
     } else if (b.dataset.field || b.id === 'field-close') {
       var fieldId = b.dataset.field || st.fieldOpen;
@@ -1563,7 +1659,8 @@
   });
   document.addEventListener('change', function (e) {
     var id = e.target.id;
-    if (id === 'sb-week') { st.sbWeek = +e.target.value === scoreWeek() ? null : +e.target.value; renderLive(); }
+    if (id === 'conf-nav') location.hash = confHref(e.target.value);
+    else if (id === 'sb-week') { st.sbWeek = +e.target.value === scoreWeek() ? null : +e.target.value; renderLive(); }
     else if (e.target.classList.contains('mode-select')) {
       st.mode = e.target.value;
       [].forEach.call(document.querySelectorAll('.mode-select'), function (s) { s.value = st.mode; });

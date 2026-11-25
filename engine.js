@@ -367,6 +367,10 @@ var CFP = (function () {
       var ok = G.filter(function (t) { return ctx.rank(t) > 0 && !ctx.lostFinal(t); }).sort(function (a, b) { return ctx.rank(a) - ctx.rank(b); });
       return ok.length ? { adv: ok[0] } : metric(G, ctx);
     };
+    var cfpTopOrMetric = function (G, ctx) {
+      var ranked = G.filter(function (t) { return ctx.rank(t) > 0; }).sort(function (a, b) { return ctx.rank(a) - ctx.rank(b); });
+      return ranked.length && !ctx.lostFinal(ranked[0]) ? { adv: ranked[0] } : metric(G, ctx);
+    };
     // A plain CFP ranking comparison (Pac-12 two-team step): unranked teams are level with each other.
     var cfpRank = function (G, ctx) { return vals(G, function (t) { return ctx.rank(t) ? 100 - ctx.rank(t) : 0; }); };
 
@@ -391,8 +395,8 @@ var CFP = (function () {
         multi: [h2h({ beat: 1, lost: 1 }), cfpThenMetric, overall(true), ordered({ all: 1 }), common(), coin] },
       // Sun Belt division champions: tied teams carry on down the list instead of starting over.
       belt: { divs: 1, keepGoing: 1,
-        two: [h2h(), divRecord, ordered({ div: 1 }), common({ nonDiv: 1 }), cfpThenMetric, overall(false), coin],
-        multi: [h2h({ any: 1 }), divRecord, ordered({ div: 1 }), common({ nonDiv: 1 }), cfpThenMetric, overall(false), coin] }
+        two: [h2h(), divRecord, ordered({ div: 1 }), common({ nonDiv: 1 }), cfpTopOrMetric, overall(false), coin],
+        multi: [h2h({ any: 1 }), divRecord, ordered({ div: 1 }), common({ nonDiv: 1 }), cfpTopOrMetric, overall(false), coin] }
     };
     var GENERIC = { two: [h2h(), common(), ordered(), oppPct('sum'), metric, coin], multi: [h2h({ beat: 1 }), common(), ordered(), oppPct('sum'), metric, coin] };
 
@@ -579,10 +583,10 @@ var CFP = (function () {
         confs[t.conf].forEach(function (x) { (m[T[x].div] = m[T[x].div] || []).push(x); });
         divs = Object.keys(m).map(function (k) { return m[k]; });
       }
-      // A "Win conf." pick: that team wins the title game whenever it plays in it.
-      var pk = picks ? picks['ccg:' + t.conf] : null, lock = -1;
-      if (pk != null) confs[t.conf].forEach(function (x) { if (T[x].id === pk) lock = x; });
-      return { conf: t.conf, members: confs[t.conf], divs: divs, n: t.n, h: t.h, a: t.a, w: t.w, s: t.s, lock: lock };
+      // Title game picks, "ccg:<conf>:<team id>": 'W' wins the title game, or 'L' loses it, whenever it plays in it.
+      var say = {};
+      if (picks) confs[t.conf].forEach(function (x) { var v = picks['ccg:' + t.conf + ':' + T[x].id]; if (v === 'W' || v === 'L') say[x] = v; });
+      return { conf: t.conf, members: confs[t.conf], divs: divs, n: t.n, h: t.h, a: t.a, w: t.w, s: t.s, say: say };
     });
     // The CFP ranking going into a team's final week, where the tiebreakers use it: the real ranking once only
     // that week is left (or none), else the simulated one.
@@ -802,7 +806,9 @@ var CFP = (function () {
         var xh = tg.n ? 0 : P.hfa;
         var spr = R[x] - R[y] + xh;
         wt = spr + eps[x] - eps[y] + this.g() * M.gameSD > 0 ? x : y;
-        if (tg.lock === x || tg.lock === y) wt = tg.lock; // a "Win conf." pick
+        // A pick decides it; two picks that contradict each other (both win, or both lose) leave it to the game.
+        var sx = tg.say[x], sy = tg.say[y];
+        if (sx !== sy) wt = sx === 'W' || sy === 'L' ? x : y;
         var pe = phi(spr / P.total), sr = M.surprise * ((wt === x ? 1 : 0) - pe);
         post[x] += sr; post[y] -= sr;
         var lt = wt === x ? y : x;

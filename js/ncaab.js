@@ -353,16 +353,20 @@
   function gameSd() { return Math.sqrt(MODEL.gameSD * MODEL.gameSD + 2 * MODEL.teamSD * MODEL.teamSD); }
   function rtg(i) { return i < N1 ? R.teams[i].rating : -22; }
   function winChance(h, a, neutral) { return phi((rtg(h) - rtg(a) + (neutral ? 0 : MODEL.hfa)) / gameSd()); }
+  // A team's place on this page: its row in the standings, opened (#team/<ESPN id>).
+  function teamLink(i, html) { return i < N1 ? '<a class="tlink" href="#team/' + esc(D.teams[i].espn) + '">' + html + '</a>' : html; }
+  // Simulate games: one random run, kept until it's simulated again. Each team wins as often as its chance.
+  function roll(key) { st.bkRoll = st.bkRoll || {}; if (st.bkRoll[key] == null) st.bkRoll[key] = Math.random(); return st.bkRoll[key]; }
   function bkRow(key, i, opp, seed, p, won, pk, ph) {
     if (i == null) return '<div class="bk-team tbd">' + (ph ? '<span class="bk-name"><small>' + esc(ph) + '</small></span>' : '') + '</div>';
     var t = D.teams[i], mine = pk === i, theirs = pk === opp;
-    var nm = '<span class="bk-name"><span class="bk-nm">' + esc(t.name) + '</span><span class="bk-ab">' + esc(t.ab) + '</span> <small class="lg-rec">(' + recText(i) + ')</small></span>';
+    var nm = '<span class="bk-name">' + teamLink(i, '<span class="bk-nm">' + esc(t.name) + '</span><span class="bk-ab">' + esc(t.ab) + '</span>') + ' <small class="lg-rec">(' + recText(i) + ')</small></span>';
     if (opp == null) return '<div class="bk-team"><span class="bk-seed">' + seed + '</span>' + logo(t, 22) + nm + '<span class="bk-p"></span></div>';
     var label = mine ? t.name + ' picked to win. Press to pick ' + D.teams[opp].name : theirs ? D.teams[opp].name + ' picked. Press to clear the pick' : 'Press to pick ' + t.name + ' to win';
-    return '<button type="button" class="bk-team picks' + (won ? ' win' : won === false ? ' lose' : '') + '" data-bk="' + key + '" data-team="' + i + '" data-opp="' + opp + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' +
+    return '<div class="bk-team picks' + (won ? ' win' : won === false ? ' lose' : '') + '" data-bkrow="1">' +
       '<span class="bk-seed">' + seed + '</span>' + logo(t, 22) + nm +
       '<span class="bk-p">' + (p == null ? '' : pct(p)) + '</span>' +
-      '<span class="mini"><span class="pick-box' + (mine ? ' pick-w' : theirs ? ' pick-l' : '') + '" aria-hidden="true">' + (mine ? 'W' : theirs ? 'L' : '') + '</span></span></button>';
+      '<span class="mini"><button type="button" class="pick-box' + (mine ? ' pick-w' : theirs ? ' pick-l' : '') + '" data-bk="' + key + '" data-team="' + i + '" data-opp="' + opp + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (mine ? 'W' : theirs ? 'L' : '') + '</button></span></div>';
   }
   // A game card: the better seed on top. A slot is decided only by the reader's pick, or by the favorite with
   // Simulate games on. Every tournament game is on a neutral court.
@@ -372,7 +376,7 @@
     ph = ph || [];
     var both = h != null && a != null;
     var p = both ? winChance(h, a, true) : null, pk = both && (st.bk[key] === h || st.bk[key] === a) ? st.bk[key] : null;
-    var w = pk != null ? pk : both && st.bkSim ? (p >= 0.5 ? h : a) : null;
+    var w = pk != null ? pk : both && st.bkSim ? (roll(key) < p ? h : a) : null;
     if (w != null) pathP[w] = (pathP[w] == null ? 1 : pathP[w]) * (w === h ? p : 1 - p); // chance of winning every game on its path
     var show = w != null ? p : null;
     // Region games carry no header of their own (the round's heading above the column says it); a null label.
@@ -424,7 +428,8 @@
     var fin = game('final', 'National Championship', s1.winner, s2.winner, regSeed, ['Apr 5', ['CBS']]);
     $('nfl-bk-clear').hidden = !Object.keys(st.bk).length;
     $('nfl-bk-sim').setAttribute('aria-pressed', st.bkSim ? 'true' : 'false');
-    $('nfl-bk-sim').textContent = st.bkSim ? 'Show seeds only' : 'Simulate games';
+    $('nfl-bk-sim').textContent = st.bkSim ? 'Simulate again' : 'Simulate games';
+    $('nfl-bk-off').hidden = !st.bkSim;
     // One view at a time, picked from a row of buttons: a region (its four rounds side by side on wide screens)
     // or the Final Four. The First Four sits at the bottom whatever's chosen.
     var tabs = REGIONS.concat('Final Four'), cur = st.bkReg || 0;
@@ -434,7 +439,7 @@
     var champ = fin.winner, champCard = '';
     if (champ != null) {
       var ct = D.teams[champ];
-      champCard = '<div class="bk-champ"><div class="bk-champ-team">' + logo(ct, 40) + '<div><p class="bk-label">' + (st.bk.final === champ ? 'Your champion' : 'Projected champion') + '</p><p class="bk-champ-name">' + esc(ct.name) + '</p></div></div>' +
+      champCard = '<div class="bk-champ"><div class="bk-champ-team">' + logo(ct, 40) + '<div><p class="bk-label">' + (st.bk.final === champ ? 'Your champion' : 'Simulated champion') + '</p><p class="bk-champ-name">' + esc(ct.name) + '</p></div></div>' +
         '<p><b>' + esc(ct.name) + '</b> wins every game on this path ' + pct(pathP[champ]) + ' of the time, using each game’s win chance. Across all simulations it wins the title ' + pct(R.teams[champ].title) + ' of the time.</p></div>';
     }
     var top = []; for (var i = 0; i < N1; i++) top.push(i);
@@ -508,18 +513,24 @@
     if (g.s === 'in') return pw * r.ifWin + (1 - pw) * r.ifLoss;
     return r.make;
   }
+  // The scoreboard's pick box, on any game not yet over: the same picks as the standings' boxes.
+  function sbPick(g, i) {
+    var o = g.h === i ? g.a : g.h, pk = st.picks[g.id], won = pk === i, lost = pk === o, tie = pk === 'T', what = D.teams[i].name + ' vs ' + D.teams[o].name;
+    var say = won ? what + ': picked to win' : lost ? what + ': picked to lose' : tie ? what + ': picked to tie' : 'No pick for ' + what + '. Press to pick a win';
+    return '<span class="mini lg-pick"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + i + '" aria-label="' + esc(say) + '" title="' + esc(say) + '">' + (won ? 'W' : lost ? 'L' : tie ? 'T' : '') + '</button></span>';
+  }
   function cardRow(g, i, score, other) {
     var t = D.teams[i], r = i < N1 ? R.teams[i] : null;
-    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + rankTag(t) + esc(t.ab || t.name) + (r ? ' <small class="lg-rec">(' + recText(i) + ')</small>' : '') + '</span></div>';
+    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + teamLink(i, rankTag(t) + esc(t.ab || t.name)) + (r ? ' <small class="lg-rec">(' + recText(i) + ')</small>' : '') + '</span></div>';
     if (g.s === 'pre') {
       var hw = R.homeWin[g.id], win = hw == null ? '—' : Math.round((g.h === i ? hw : 1 - hw) * 100) + '%';
       var isNext = r && r.next === g.id;
-      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.make : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if');
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.make : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if') + sbPick(g, i);
     }
     var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + (score == null ? '' : score) + '</div>';
     if (sbStat(g) === 'in') {
       var ph = liveHomeWin(g), pw = g.h === i ? ph : 1 - ph, nx = r && r.next === g.id;
-      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(r ? makeNow(g, i, pw) : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if');
+      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(r ? makeNow(g, i, pw) : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if') + sbPick(g, i);
     }
     return name + lead + '<div class="lg-num"></div>' + tile(r ? makeNow(g, i) : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if');
   }
@@ -531,8 +542,8 @@
       isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
       '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
-      (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
-        isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
+      (isPre ? '<div class="lg-rows pre can-pick"><span></span><span class="h">Win</span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span><span class="h">Pick</span>' :
+        isLive ? '<div class="lg-rows inplay can-pick"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span><span class="h">Pick</span>' :
         '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>') +
       cardRow(g, g.a, g.as, g.hs) + cardRow(g, g.h, g.hs, g.as) + '</div></article>';
   }
@@ -666,13 +677,23 @@
   // ---------- Views ----------
   var PAGES = { rankings: 'College basketball NCAA tournament odds · Playoff Odds Board', playoff: 'Projected NCAA tournament bracket · Playoff Odds Board', scoreboard: 'College basketball scores · Playoff Odds Board' };
   function showPage() {
-    var h = location.hash.replace('#', '');
+    var h = location.hash.replace('#', ''), tm = /^team\/(.+)$/.exec(h), ti = -1;
+    // #team/<ESPN id>: the standings with that team's row open and in view.
+    if (tm) for (var q = 0; q < N1; q++) if (String(D.teams[q].espn) === tm[1]) ti = q;
+    if (tm) h = 'rankings';
     page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'scoreboard';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== page; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.title = PAGES[page];
+    if (ti >= 0) {
+      if (!document.querySelector('[data-open="' + ti + '"]')) { st.view = 'all'; $('nfl-view').value = 'all'; st.order = null; }
+      st.open[ti] = true;
+      renderRankings();
+      var tb = document.querySelector('[data-open="' + ti + '"]');
+      if (tb) { tb.scrollIntoView({ block: 'center' }); tb.focus({ preventScroll: true }); }
+    }
     refreshScores();
   }
   function renderAll() { renderPicksBar(); renderRankings(); renderBracket(); renderScores(); }
@@ -730,7 +751,7 @@
       return;
     }
     busy = true;
-    renderPicksBar(); renderRankings();
+    renderPicksBar(); renderRankings(); renderScores();
     $('nfl-tw').classList.add('busy');
     simTimer = setTimeout(function () {
       if (worker && worker.job) { worker.terminate(); worker = null; }
@@ -746,7 +767,8 @@
     }, 150);
   }
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('button');
+    var b = e.target.closest('button'), row = b || e.target.closest('a') ? null : e.target.closest('[data-bkrow]');
+    if (row) b = row.querySelector('[data-bk]');
     if (!b) return;
     if (b.dataset.sbsort) { st.sbSort = b.dataset.sbsort; impactFrozen = null; renderScores(); return; }
     if (b.dataset.cal) { st.cal = st.cal ? null : (st.day || currentDay()).slice(0, 7); redrawDayStrip(); return; }
@@ -775,7 +797,7 @@
       st.order = null; renderRankings();
     } else if (b.id === 'nfl-clear') { st.picks = {}; st.order = null; resimulate(); }
     else if (b.id === 'nfl-bk-clear') { st.bk = {}; renderBracket(); }
-    else if (b.id === 'nfl-bk-sim') { st.bkSim = !st.bkSim; renderBracket(); }
+    else if (b.id === 'nfl-bk-sim' || b.id === 'nfl-bk-off') { st.bkSim = b.id === 'nfl-bk-sim'; st.bkRoll = {}; renderBracket(); }
   });
   $('nfl-expand').addEventListener('click', function (e) {
     var on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
@@ -788,7 +810,7 @@
   document.addEventListener('click', function (e) { if (st.cal && !e.target.closest('.day-jump')) { st.cal = null; redrawDayStrip(); } });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.cal) { st.cal = null; redrawDayStrip(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   $('nfl-week').addEventListener('change', function (e) { st.day = e.target.value === currentDay() ? null : e.target.value; renderScores(); refreshScores(); });
-  window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', function () { if (!/^#team\//.test(location.hash)) window.scrollTo(0, 0); showPage(); });
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (e) {}
   renderAll();

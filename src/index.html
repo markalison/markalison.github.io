@@ -37,11 +37,22 @@
         <div class="bk-actions">
           <button class="btn" id="bk-clear" type="button" hidden>Clear picks</button>
           <div class="ctl"><label for="mode-bk">Ratings used</label><select id="mode-bk" class="mode-select"></select></div>
+          <button class="btn" id="bk-off" type="button" hidden>Show seeds only</button>
           <button class="btn bk-toggle" id="bk-sim" type="button" aria-pressed="false">Simulate games</button>
         </div>
       </div>
       <div class="bracket" id="bracket"></div>
     </section>
+  </div>
+
+  <!-- One conference's page, #conf/<name>. -->
+  <div class="stack" id="page-conf" hidden>
+    <div class="filters tp-top">
+      <a class="tp-back" href="#rankings">All teams</a>
+      <div class="ctl"><label for="conf-nav">Conference</label><select id="conf-nav"></select></div>
+      <div class="ctl"><label for="mode-conf">Ratings used</label><select id="mode-conf" class="mode-select"></select></div>
+    </div>
+    <div class="tp" id="conf-page"></div>
   </div>
 
   <!-- One team's page. js/app.js fills it in for the team named in the address, #team/<name>. -->

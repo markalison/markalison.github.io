@@ -107,7 +107,7 @@ const header = (page) => {
   // One row: the menu (☰: every sport, then the night mode switch), the sport you're in, its tabs, and the brand
   // at the right.
   const on = (k) => SPORTS[k] === cur && page !== 'about' ? ' aria-current="true"' : '';
-  const item = (k) => `<a href="${SPORTS[k].href}"${on(k)}><img class="menu-logo" src="${SPORTS[k].logo}" alt=""><span>${SPORTS[k].name}</span></a>`;
+  const item = (k) => `<a href="${SPORTS[k].href}"${on(k)}><span>${SPORTS[k].name}</span></a>`;
   return `<header class="site-header">
   <div class="container header-bar">
     <div class="menu">

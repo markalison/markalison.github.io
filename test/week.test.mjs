@@ -91,7 +91,7 @@ test('without title games in the data, the weeks simply run on', () => {
 // ---- conference title picks in the simulation
 test('a "Win conf." pick: the team wins its conference exactly when it reaches the title game', () => {
   const uga = D.teams.findIndex((t) => t.ab === 'UGA'), ttu = D.teams.findIndex((t) => t.ab === 'TTU');
-  const picks = { ['ccg:sec']: D.teams[uga].id, ['ccg:big12']: D.teams[ttu].id };
+  const picks = { ['ccg:sec:' + D.teams[uga].id]: 'W', ['ccg:big12:' + D.teams[ttu].id]: 'W' };
   const r = CFP.runAll(D, 'blend', 4000, 7, 200, picks).teams;
   assert.equal(r[uga].champ, r[uga].ccg);
   assert.equal(r[ttu].champ, r[ttu].ccg);
@@ -102,12 +102,24 @@ test('a "Win conf." pick: the team wins its conference exactly when it reaches t
   assert.ok(none[uga].champ < none[uga].ccg, 'without a pick it can lose the title game');
 });
 
+test('a title game loss pick: the team never wins its conference, and still reaches the game as often', () => {
+  const uga = D.teams.findIndex((t) => t.ab === 'UGA'), key = 'ccg:sec:' + D.teams[uga].id;
+  const base = CFP.runAll(D, 'blend', 3000, 7, 200).teams, r = CFP.runAll(D, 'blend', 3000, 7, 200, { [key]: 'L' }).teams;
+  assert.ok(base[uga].champ > 0);
+  assert.equal(r[uga].champ, 0);
+  assert.ok(Math.abs(r[uga].ccg - base[uga].ccg) < 0.03);
+  // Every SEC team picked to lose: the picks contradict each other, so the games decide and there is still one champion.
+  const sec = D.teams.map((t, i) => i).filter((i) => i < D.fbs && D.teams[i].conf === 'sec');
+  const all = CFP.runAll(D, 'blend', 1000, 7, 50, Object.fromEntries(sec.map((i) => ['ccg:sec:' + D.teams[i].id, 'L']))).teams;
+  assert.ok(Math.abs(sec.reduce((t, i) => t + all[i].champ, 0) - 1) < 1e-9);
+});
+
 test('a pick for a team that cannot reach the title game changes nothing for the others', () => {
   const sec = D.teams.map((t, i) => i).filter((i) => i < D.fbs && D.teams[i].conf === 'sec');
   const base = CFP.runAll(D, 'blend', 3000, 11, 200).teams;
   const out = sec.find((i) => base[i].ccg === 0);
   if (out == null) return; // every SEC team still alive
-  const r = CFP.runAll(D, 'blend', 3000, 11, 200, { 'ccg:sec': D.teams[out].id }).teams;
+  const r = CFP.runAll(D, 'blend', 3000, 11, 200, { ['ccg:sec:' + D.teams[out].id]: 'W' }).teams;
   sec.forEach((i) => assert.equal(r[i].champ, base[i].champ));
 });
 

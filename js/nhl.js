@@ -348,16 +348,20 @@
     (function go(a, b, k, p) { if (a === 4) { win += p; return; } if (b === 4) return; var q = HOME[k] ? pH : pA; go(a + 1, b, k + 1, p * q); go(a, b + 1, k + 1, p * (1 - q)); })(0, 0, 0, 1);
     return win;
   }
+  // A team's place on this page: its row in the standings, opened (#team/<ESPN id>).
+  function teamLink(i, html) { return '<a class="tlink" href="#team/' + esc(D.teams[i].espn) + '">' + html + '</a>'; }
+  // Simulate games: one random run, kept until it's simulated again. Each team wins as often as its chance.
+  function roll(key) { st.bkRoll = st.bkRoll || {}; if (st.bkRoll[key] == null) st.bkRoll[key] = Math.random(); return st.bkRoll[key]; }
   function bkRow(key, i, opp, seed, p, won, pk, ph) {
     if (i == null) return '<div class="bk-team tbd">' + (ph ? '<span class="bk-name"><small>' + esc(ph) + '</small></span>' : '') + '</div>';
     var t = D.teams[i], mine = pk === i, theirs = pk === opp;
-    if (opp == null) return '<div class="bk-team"><span class="bk-seed">' + seed + '</span>' + logo(t, 22) + '<span class="bk-name"><span class="bk-nm">' + esc(t.short) + '</span><span class="bk-ab">' + esc(t.ab) + '</span> <small class="lg-rec">(' + recText(i) + ')</small></span><span class="bk-p"></span></div>';
+    if (opp == null) return '<div class="bk-team"><span class="bk-seed">' + seed + '</span>' + logo(t, 22) + '<span class="bk-name">' + teamLink(i, '<span class="bk-nm">' + esc(t.short) + '</span><span class="bk-ab">' + esc(t.ab) + '</span>') + ' <small class="lg-rec">(' + recText(i) + ')</small></span><span class="bk-p"></span></div>';
     var label = mine ? t.short + ' picked to win. Press to pick ' + D.teams[opp].short : theirs ? D.teams[opp].short + ' picked. Press to clear the pick' : 'Press to pick ' + t.short + ' to win';
-    return '<button type="button" class="bk-team picks' + (won ? ' win' : won === false ? ' lose' : '') + '" data-bk="' + key + '" data-team="' + i + '" data-opp="' + opp + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' +
+    return '<div class="bk-team picks' + (won ? ' win' : won === false ? ' lose' : '') + '" data-bkrow="1">' +
       '<span class="bk-seed">' + seed + '</span>' + logo(t, 22) +
-      '<span class="bk-name"><span class="bk-nm">' + esc(t.short) + '</span><span class="bk-ab">' + esc(t.ab) + '</span> <small class="lg-rec">(' + recText(i) + ')</small></span>' +
+      '<span class="bk-name">' + teamLink(i, '<span class="bk-nm">' + esc(t.short) + '</span><span class="bk-ab">' + esc(t.ab) + '</span>') + ' <small class="lg-rec">(' + recText(i) + ')</small></span>' +
       '<span class="bk-p">' + (p == null ? '' : pct(p)) + '</span>' +
-      '<span class="mini"><span class="pick-box' + (mine ? ' pick-w' : theirs ? ' pick-l' : '') + '" aria-hidden="true">' + (mine ? 'W' : theirs ? 'L' : '') + '</span></span></button>';
+      '<span class="mini"><button type="button" class="pick-box' + (mine ? ' pick-w' : theirs ? ' pick-l' : '') + '" data-bk="' + key + '" data-team="' + i + '" data-opp="' + opp + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (mine ? 'W' : theirs ? 'L' : '') + '</button></span></div>';
   }
   // 2027 postseason (NHL): playoffs from about April 18; the Stanley Cup Final in June.
   function label(c, text) { return '<span class="bk-title">' + esc(c + ' · ' + text) + '</span>'; }
@@ -370,12 +374,12 @@
   // to 27, img/). TNT has the Final in odd-numbered years, ABC in even ones.
   var CUP_LOGO = '<img class="bk-conf bk-cup" src="img/stanley-cup-2027-shield.png" alt="" loading="lazy">';
   // A game or series card: the better seed on top. The bracket starts blank: a slot is decided only by the
-  // reader's pick, or by the favorite with Simulate games on. Chances show once it's picked or simulated.
+  // reader's pick, or by one random run with Simulate games on. Chances show once it's picked or simulated.
   function game(key, lab, h, a, seedOf, isSeries, when, neutral, ph) {
     ph = ph || [];
     var both = h != null && a != null;
     var p = both ? (isSeries ? seriesChance(h, a) : winChance(h, a, neutral)) : null, pk = both && (st.bk[key] === h || st.bk[key] === a) ? st.bk[key] : null;
-    var w = pk != null ? pk : both && st.bkSim ? (p >= 0.5 ? h : a) : null;
+    var w = pk != null ? pk : both && st.bkSim ? (roll(key) < p ? h : a) : null;
     var show = w != null ? p : null;
     return { winner: w, loser: w == null ? null : w === h ? a : h, html: '<div class="bk-game"><div class="bk-where"><span class="bk-place">' + lab + '</span>' + (when ? '<span class="bk-air">' + air(when) + '</span>' : '') + '</div>' +
       bkRow(key, h, a, h == null ? '' : seedOf(h), show, w == null ? null : w === h, pk, ph[0]) + bkRow(key, a, h, a == null ? '' : seedOf(a), show == null ? null : 1 - show, w == null ? null : w === a, pk, ph[1]) + '</div>' };
@@ -433,7 +437,8 @@
     var fin = game('fin', CUP_LOGO + '<span class="bk-title">Stanley Cup Final</span>', top[0], top[1], function (i) { return D.teams[i].conf.charAt(0); }, true, ['June', [D.season % 2 ? 'TNT' : 'ABC']]);
     $('nfl-bk-clear').hidden = !Object.keys(st.bk).length;
     $('nfl-bk-sim').setAttribute('aria-pressed', st.bkSim ? 'true' : 'false');
-    $('nfl-bk-sim').textContent = st.bkSim ? 'Show seeds only' : 'Simulate games';
+    $('nfl-bk-sim').textContent = st.bkSim ? 'Simulate again' : 'Simulate games';
+    $('nfl-bk-off').hidden = !st.bkSim;
     var cols = [[E.r1, W.r1], [E.sf, W.sf], [[E.cf], [W.cf]], [[fin]]];
     var half = function (games) { return '<div class="nfl-half">' + games.map(function (g) { return g.html; }).join('') + '</div>'; };
     $('nfl-bracket').innerHTML = '<div class="bk-rounds nfl-rounds nba-rounds nhl-rounds" id="nfl-rounds">' + cols.map(function (games, k) {
@@ -510,18 +515,24 @@
     if (g.s === 'in') return pw * r.ifWin + (1 - pw) * r.ifLoss;
     return r.playoff;
   }
+  // The scoreboard's pick box, on any game not yet over: the same picks as the standings' boxes.
+  function sbPick(g, i) {
+    var o = g.h === i ? g.a : g.h, pk = st.picks[g.id], won = pk === i, lost = pk === o, tie = pk === 'T', what = D.teams[i].short + ' vs ' + D.teams[o].short;
+    var say = won ? what + ': picked to win' : lost ? what + ': picked to lose' : tie ? what + ': picked to tie' : 'No pick for ' + what + '. Press to pick a win';
+    return '<span class="mini lg-pick"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + i + '" aria-label="' + esc(say) + '" title="' + esc(say) + '">' + (won ? 'W' : lost ? 'L' : tie ? 'T' : '') + '</button></span>';
+  }
   function cardRow(g, i, score, other) {
     var t = D.teams[i], r = R.teams[i];
-    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab) + ' <small class="lg-rec">(' + recText(i) + ')</small></span></div>';
+    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + teamLink(i, esc(t.ab)) + ' <small class="lg-rec">(' + recText(i) + ')</small></span></div>';
     if (g.s === 'pre') {
       var hw = R.homeWin[g.id], win = hw == null ? '—' : Math.round((g.h === i ? hw : 1 - hw) * 100) + '%';
       var isNext = r.next === g.id;
-      return name + '<div class="lg-num">' + win + '</div>' + tile(r.playoff) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if');
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r.playoff) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if') + sbPick(g, i);
     }
     var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + (score == null ? '' : score) + '</div>';
     if (sbStat(g) === 'in') {
       var ph = liveHomeWin(g), pw = g.h === i ? ph : 1 - ph, nx = r.next === g.id;
-      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(playoffNow(g, i, pw)) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if');
+      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(playoffNow(g, i, pw)) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if') + sbPick(g, i);
     }
     return name + lead + '<div class="lg-num"></div>' + tile(playoffNow(g, i)) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if');
   }
@@ -533,8 +544,8 @@
       isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
       '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
-      (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
-        isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
+      (isPre ? '<div class="lg-rows pre can-pick"><span></span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span><span class="h">Pick</span>' :
+        isLive ? '<div class="lg-rows inplay can-pick"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span><span class="h">Pick</span>' :
         '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>') +
       cardRow(g, g.a, g.as, g.hs) + cardRow(g, g.h, g.hs, g.as) + '</div></article>';
   }
@@ -670,13 +681,23 @@
   // ---------- Views: Rankings, Bracket and Scores, chosen by the address's # ----------
   var PAGES = { rankings: 'NHL standings and playoff odds · Playoff Odds Board', playoff: 'NHL playoff bracket · Playoff Odds Board', scoreboard: 'NHL scores · Playoff Odds Board' };
   function showPage() {
-    var h = location.hash.replace('#', '');
+    var h = location.hash.replace('#', ''), tm = /^team\/(.+)$/.exec(h), ti = -1;
+    // #team/<ESPN id>: the standings with that team's row open and in view.
+    if (tm) for (var q = 0; q < D.teams.length; q++) if (String(D.teams[q].espn) === tm[1]) ti = q;
+    if (tm) h = 'rankings';
     page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'scoreboard';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== page; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.title = PAGES[page];
+    if (ti >= 0) {
+      if (!document.querySelector('[data-open="' + ti + '"]')) { st.view = 'all'; $('nfl-view').value = 'all'; st.order = null; }
+      st.open[ti] = true;
+      renderRankings();
+      var tb = document.querySelector('[data-open="' + ti + '"]');
+      if (tb) { tb.scrollIntoView({ block: 'center' }); tb.focus({ preventScroll: true }); }
+    }
     refreshScores();
   }
   function renderAll() { renderPicksBar(); renderRankings(); renderBracket(); renderScores(); }
@@ -738,7 +759,7 @@
       return;
     }
     busy = true;
-    renderPicksBar(); renderRankings(); // the box changes straight away
+    renderPicksBar(); renderRankings(); renderScores(); // the box changes straight away
     $('nfl-tw').classList.add('busy');
     simTimer = setTimeout(function () {
       // A worker still busy with an older pick is replaced rather than waited on.
@@ -755,7 +776,8 @@
     }, 150);
   }
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('button');
+    var b = e.target.closest('button'), row = b || e.target.closest('a') ? null : e.target.closest('[data-bkrow]');
+    if (row) b = row.querySelector('[data-bk]');
     if (!b) return;
     if (b.dataset.sbsort) { st.sbSort = b.dataset.sbsort; impactFrozen = null; renderScores(); return; }
     if (b.dataset.cal) { st.cal = st.cal ? null : (st.day || currentDay()).slice(0, 7); redrawDayStrip(); return; }
@@ -783,7 +805,7 @@
       st.order = null; renderRankings();
     } else if (b.id === 'nfl-clear') { st.picks = {}; st.order = null; resimulate(); }
     else if (b.id === 'nfl-bk-clear') { st.bk = {}; renderBracket(); }
-    else if (b.id === 'nfl-bk-sim') { st.bkSim = !st.bkSim; renderBracket(); }
+    else if (b.id === 'nfl-bk-sim' || b.id === 'nfl-bk-off') { st.bkSim = b.id === 'nfl-bk-sim'; st.bkRoll = {}; renderBracket(); }
   });
 
   $('nfl-expand').addEventListener('click', function (e) {
@@ -797,7 +819,7 @@
   document.addEventListener('click', function (e) { if (st.cal && !e.target.closest('.day-jump')) { st.cal = null; redrawDayStrip(); } });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.cal) { st.cal = null; redrawDayStrip(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   $('nfl-week').addEventListener('change', function (e) { st.day = e.target.value === currentDay() ? null : e.target.value; renderScores(); refreshScores(); });
-  window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
+  window.addEventListener('hashchange', function () { if (!/^#team\//.test(location.hash)) window.scrollTo(0, 0); showPage(); });
   // Dark and light logos differ, so redraw when the theme changes.
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (e) {}

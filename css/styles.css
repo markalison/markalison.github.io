@@ -1240,6 +1240,14 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp .ap-chart svg { margin-top: 0; }
 .tp .ap-y, .tp .ap-x { font-size: 11px; }
 .tp .ap-dot { stroke-width: 1; }
+/* Side by side, the schedule and the standings are the same height: the shorter one's rows spread to match. */
+@media (min-width: 900px) {
+  .tp .tp-grid { align-items: stretch; }
+  .tp-grid > .tp-card { display: flex; flex-direction: column; }
+  .tp-grid > .tp-card > h3 { flex: none; min-height: 30px; }
+  .tp-grid > .tp-card > table { flex: 1 1 auto; }
+  .tp-grid > .tp-card > table thead tr { height: 44px; }
+}
 .tp .tp-odds { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 479px) { .tp .tp-odds > div { padding-inline: 10px; } .tp .tp-odds dd { font-size: 1.9rem; } }
 @media (min-width: 900px) { .tp .tp-odds > div.tp-lead { order: 0; } .tp .tp-odds > div { padding-block: 10px 12px; } }

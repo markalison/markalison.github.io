@@ -1314,6 +1314,7 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .cf-two { display: grid; gap: var(--s6); }
 .cf-two > * { min-width: 0; }
 @media (min-width: 900px) { .cf-two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 479px) { .cf-filters { flex-wrap: wrap; row-gap: var(--s3); } .cf-filters .cf-title { flex-basis: 100%; } }
 @media (max-width: 899px) { .cf-filters:has(.cf-nav:not([hidden])) { flex-wrap: wrap; row-gap: var(--s3); } .cf-filters .cf-nav { flex-basis: 100%; } }
 .cf-race { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .cf-race li { display: grid; grid-template-columns: 84px minmax(0, 1fr) 52px; align-items: center; gap: 10px; }

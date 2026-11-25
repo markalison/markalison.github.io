@@ -510,26 +510,24 @@
   function oddsChart(i, what) {
     var H = D.hist, v = H && H.v[i];
     if (!v || !v.length) return '<p class="ap-none">No history yet.</p>';
-    var n = v.length, W = 210, Hh = 92, L = 31, Rp = 6, T = 7, B = 16, dates = H.labels.some(function (l) { return /[a-z]/.test(l) && l !== 'Pre' && l !== 'Now'; });
-    var px = function (k) { return L + (n === 1 ? (W - L - Rp) / 2 : k * (W - L - Rp) / (n - 1)); };
-    var py = function (x) { return T + (1000 - x) * (Hh - T - B) / 1000; };
-    var grid = [1000, 500, 0].map(function (y) {
-      return '<line x1="' + L + '" x2="' + (W - Rp) + '" y1="' + py(y) + '" y2="' + py(y) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(y) + 3) + '" class="ap-y">' + y / 10 + '%</text>';
-    }).join('');
-    // A plain line with a dot on every week; each dot's hover text gives that week's number.
+    // Drawn to the same height, axis and text as the seed chart beside it, at any width: the line stretches with
+    // the plot, while its thickness, the dots and the text keep their size.
+    var n = v.length, dates = H.labels.some(function (l) { return /[a-z]/.test(l) && l !== 'Pre' && l !== 'Now'; });
+    var px = function (k) { return n === 1 ? 50 : k * 100 / (n - 1); }, py = function (x) { return (1000 - x) / 10; };
     var pts = [];
-    v.forEach(function (x, k) { if (x != null) pts.push(px(k).toFixed(1) + ',' + py(x).toFixed(1)); });
-    var line = pts.length > 1 ? '<polyline points="' + pts.join(' ') + '" class="ap-line"/>' : '';
+    v.forEach(function (x, k) { if (x != null) pts.push(px(k).toFixed(2) + ',' + py(x).toFixed(2)); });
+    var line = pts.length > 1 ? '<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + pts.join(' ') + '" class="ap-line" vector-effect="non-scaling-stroke"/></svg>' : '';
+    // A dot on every week; its hover text gives that week's number.
     var dots = v.map(function (x, k) {
-      return x == null ? '' : '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="2.2" class="ap-dot"><title>' + histLabel(H.labels[k]) + ': ' + pct(x / 1000) + (H.src && H.src[k] === 'saved' ? ' (as the site had it then)' : H.src && (H.src[k] === 'rebuilt' || H.src[k] === 'pre') ? ' (rebuilt)' : '') + '</title></circle>';
+      return x == null ? '' : '<i class="ap-pt" style="left:' + px(k).toFixed(2) + '%;top:' + py(x).toFixed(2) + '%" title="' + esc(histLabel(H.labels[k]) + ': ' + pct(x / 1000) + (H.src && H.src[k] === 'saved' ? ' (as the site had it then)' : H.src && (H.src[k] === 'rebuilt' || H.src[k] === 'pre') ? ' (rebuilt)' : '')) + '"></i>';
     }).join('');
     var step = Math.max(1, Math.ceil(n / (dates ? 3 : 5)));
     var xs = H.labels.map(function (l, k) {
       if (k !== n - 1 && (k % step || n - 1 - k < step)) return '';
-      return '<text x="' + px(k).toFixed(1) + '" y="' + (Hh - 4) + '" class="ap-x"' + (k === n - 1 && n > 1 ? ' style="text-anchor:end"' : k === 0 ? ' style="text-anchor:start"' : '') + '>' + (l === 'Pre' ? 'P' : l) + '</text>';
+      return '<span style="left:' + px(k).toFixed(2) + '%">' + (l === 'Pre' ? 'P' : l) + '</span>';
     }).join('');
     var label = D.teams[i].name + ', ' + what + ' over time: ' + v.map(function (x, k) { return histLabel(H.labels[k]) + ' ' + (x == null ? 'none' : pct(x / 1000)); }).join(', ');
-    return '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="' + esc(label) + '">' + grid + line + dots + xs + '</svg>';
+    return '<div class="ap-wrap">' + histY(1, '<div class="hist ap-plot" role="img" aria-label="' + esc(label) + '">' + line + dots + '</div><div class="ap-xs" aria-hidden="true">' + xs + '</div>') + '</div>';
   }
   function oddsChartBlock(i, what, model) {
     var H = D.hist;

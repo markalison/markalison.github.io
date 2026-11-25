@@ -1239,7 +1239,14 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 /* Charts: room for the labels. */
 .tp .ap-chart svg { margin-top: 0; }
 .tp .ap-y, .tp .ap-x { font-size: 11px; }
-.tp .ap-dot { stroke-width: 1; }
+/* Make CFP over time, in the seed chart's frame. Its sides leave room for the first and last dots. */
+.ap-wrap { padding-right: 8px; }
+.ap-wrap .hist-ax { margin-right: 4px; }
+.hist.ap-plot { display: block; position: relative; }
+.tp .ap-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; margin: 0; overflow: visible; }
+.tp .hist .ap-pt { position: absolute; width: 7px; height: 7px; min-height: 0; margin: -3.5px 0 0 -3.5px; border: 1px solid var(--bg); border-radius: 50%; background: var(--bar); }
+.ap-xs { position: relative; height: 11px; margin-top: 4px; font: 600 9px/1.2 var(--display); color: var(--muted); }
+.ap-xs span { position: absolute; transform: translateX(-50%); }
 /* Side by side, the schedule and the standings are the same height: the shorter one's rows spread to match. */
 @media (min-width: 900px) {
   .tp .tp-grid { align-items: stretch; }

@@ -790,11 +790,11 @@
   function favHtml(f) { return f ? '<a class="tlink cf-fav" href="' + teamHref(f.i) + '" title="' + esc(f.t.name + ' is the likeliest champion') + '"><span>' + pct(f.r.champ) + '</span>' + logo(f.t, 26) + '</a>' : '—'; }
   // The row of conferences under the header: All, then each one.
   function confNav() {
-    $('conf-nav').innerHTML = '<a href="#conferences"' + (st.confKey ? '' : ' aria-current="page"') + '>All</a>' + confKeys().map(function (k) { return '<a href="' + confHref(k) + '"' + (k === st.confKey ? ' aria-current="page"' : '') + '>' + esc(confName(k)) + '</a>'; }).join('');
+    $('conf-nav').innerHTML = '<a href="#standings"' + (st.confKey ? '' : ' aria-current="page"') + '>All</a>' + confKeys().map(function (k) { return '<a href="' + confHref(k) + '"' + (k === st.confKey ? ' aria-current="page"' : '') + '>' + esc(confName(k)) + '</a>'; }).join('');
     var on = $('conf-nav').querySelector('[aria-current]'), nav = $('conf-nav');
     if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = on.offsetLeft - nav.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   }
-  // #conferences: a panel for each conference, most CFP bids first, with its numbers and top five.
+  // #standings: a panel for each conference, most CFP bids first, with its numbers and top five.
   function renderStandings() {
     var all = buildRows(), cards = confKeys().map(function (c) { return confSummary(c, all); }).sort(function (a, b) { return b.bids - a.bids; });
     $('conf-page').innerHTML = '<div class="cf-cards">' + cards.map(function (s) {
@@ -1483,7 +1483,7 @@
     st.teamView = tm && tm[2] ? 'history' : 'season';
     // A conference's page: #conf/<name>.
     var cm = /^conf\/([^/]+)\/?$/.exec(hash), ck = cm ? confKeys().filter(function (k) { return confSlug(k) === cm[1].toLowerCase(); })[0] : null;
-    // #conferences lists every conference (an unknown one goes there too).
+    // #standings (or the old #conferences) lists every conference; an unknown one goes there too.
     if (cm || hash === 'conferences' || hash === 'standings' || hash === 'conf') { p = 'conf'; st.confKey = ck || ''; }
     var team = p === 'team' ? D.teams[ti] : null;
     if (team) st.team = team.id;
@@ -1497,8 +1497,8 @@
     document.title = team ? team.name + (hist ? ' history' : ' playoff odds') + ' · Playoff Odds Board' : PAGES[p];
     $('page-title').textContent = team ? team.name + (hist ? ' history' : ' playoff odds') : INTRO[p][0];
     if (p === 'conf') {
-      var cn = ck ? confName(ck) : 'All conferences';
-      document.title = (ck ? cn + ' football standings' : 'College football conferences') + ' and playoff odds · Playoff Odds Board';
+      var cn = ck ? confName(ck) : 'College football';
+      document.title = (ck ? cn + ' football' : cn) + ' standings and playoff odds · Playoff Odds Board';
       $('page-title').textContent = cn + ' standings and playoff odds';
       renderConf();
     }

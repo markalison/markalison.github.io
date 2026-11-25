@@ -88,6 +88,41 @@ test('without title games in the data, the weeks simply run on', () => {
   assert.deepEqual(CFP.tableWeek(games, [], at('2026-11-30T15:00Z')), { wk: 15, ccg: false });
 });
 
+// ---- title games from ESPN's feed
+function espn(titleEv) {
+  const conf = { abbreviation: 'SEC', name: 'Southeastern Conference', shortName: 'SEC', id: '8', standings: { entries: ['Georgia', 'Texas', 'Alabama'].map((t, k) => ({ team: { id: String(61 + k), location: t, displayName: t + ' Team', abbreviation: t.slice(0, 3) } })) } };
+  return CFP.parseEspn({ standings: { children: [conf] }, rankings: { rankings: [] }, weeks: [{ events: [titleEv] }] });
+}
+const titleEv = (home, away, state = 'pre', extra = {}) => ({ id: '9', date: '2026-12-05T21:00Z', week: { number: 14 }, status: { period: extra.period, clock: extra.clock, type: { state, name: 'X', shortDetail: 'x' } },
+  competitions: [{ neutralSite: true, notes: [{ headline: 'SEC Championship' }], competitors: [['home', home, extra.hs], ['away', away, extra.as]].map(([homeAway, t, score]) => ({ homeAway, id: t[0], score, team: { id: t[0], location: t[1], displayName: t[1], abbreviation: 'X' } })) }] });
+test('a clinched team is read from ESPN by id, or by name when its id is a placeholder; TBD is nobody', () => {
+  const P = (a, b) => { const r = espn(titleEv(a, b)); return r.titles[0].clinch.map((i) => r.teams[i].name); };
+  if (!espn(titleEv(['-1', 'TBD'], ['-2', 'TBD'])).fbs) return assert.fail('fixture conference not recognised');
+  assert.deepEqual(P(['-1', 'TBD'], ['-2', 'TBD']), []);
+  assert.deepEqual(P(['61', 'Georgia'], ['-2', 'TBD']), ['Georgia']);
+  assert.deepEqual(P(['-1', 'Texas'], ['-2', 'TBD']), ['Texas']);
+  const r = espn(titleEv(['-1', 'Texas'], ['61', 'Georgia']));
+  assert.ok(r.titles[0].h >= 0 && r.titles[0].a >= 0);
+});
+const withTitle = (conf, f) => ({ ...D, titles: D.titles.map((t) => (t.conf === conf ? { ...t, ...f } : t)) });
+test('a clinched team is in its title game in every simulated season', () => {
+  const uga = D.teams.findIndex((t) => t.ab === 'UGA'), ala = D.teams.findIndex((t) => t.ab === 'ALA');
+  for (const i of [uga, ala]) assert.equal(CFP.runAll(withTitle('sec', { h: -1, a: -1, clinch: [i] }), 'blend', 1500, 3, 50).teams[i].ccg, 1);
+});
+test('a finished title game counts as a loss for the loser, and a live lead counts', () => {
+  const uga = D.teams.findIndex((t) => t.ab === 'UGA'), tex = D.teams.findIndex((t) => t.ab === 'TEX');
+  const base = { h: uga, a: tex, clinch: [uga, tex] };
+  const lost = CFP.runAll(withTitle('sec', { ...base, s: 'post', hs: 10, as: 20, w: tex }), 'blend', 3000, 3, 50).teams;
+  const won = CFP.runAll(withTitle('sec', { ...base, s: 'post', hs: 20, as: 10, w: uga }), 'blend', 3000, 3, 50).teams;
+  assert.equal(lost[tex].champ, 1); assert.equal(won[uga].champ, 1);
+  assert.ok(lost[tex].cfp > won[tex].cfp && won[uga].seed < lost[uga].seed);
+  // The loser's résumé takes the loss: the same as a simulated loss (a pick) gives, within noise.
+  const pick = CFP.runAll(withTitle('sec', base), 'blend', 3000, 3, 50, { ['ccg:sec:' + D.teams[uga].id]: 'L' }).teams;
+  assert.ok(Math.abs(pick[uga].cfp - lost[uga].cfp) < 0.05, pick[uga].cfp + ' v ' + lost[uga].cfp);
+  const live = CFP.runAll(withTitle('sec', { ...base, s: 'in', hs: 0, as: 21, frac: 0.1 }), 'blend', 2000, 3, 50).teams;
+  assert.ok(live[tex].champ > 0.95, String(live[tex].champ));
+});
+
 // ---- conference title picks in the simulation
 test('a "Win conf." pick: the team wins its conference exactly when it reaches the title game', () => {
   const uga = D.teams.findIndex((t) => t.ab === 'UGA'), ttu = D.teams.findIndex((t) => t.ab === 'TTU');

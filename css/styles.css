@@ -427,6 +427,18 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-rows.pre.can-pick { grid-template-columns: minmax(0, 1fr) 38px 60px 60px 60px 30px; }
 .lg-rows.inplay.can-pick { grid-template-columns: minmax(0, max-content) minmax(32px, 1fr) 38px 54px 54px 54px 30px; }
 .lg-pick { justify-self: end; }
+/* Conference title games: team, (score,) win, Make CFP, (pick). */
+.lg-rows.title-rows, .lg-rows.title-rows:not(.pre) { grid-template-columns: minmax(0, 1fr) 44px 66px 30px; gap: var(--s1) var(--s2); }
+.lg-rows.title-rows.scored { grid-template-columns: minmax(0, 1fr) 40px 44px 66px 30px; }
+.lg-rows.title-rows.scored.over { grid-template-columns: minmax(0, 1fr) 40px 30px 66px; }
+.lg-rows.title-rows > .h:nth-child(2) { text-align: right; padding-left: 0; }
+.lg-rows.title-rows .lg-score { text-align: right; padding-left: 0; }
+.lg-title .lg-top a { color: inherit; }
+.lg-site { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px var(--s3); margin: 0 0 var(--s2); font-size: var(--text-xs); color: var(--muted); }
+.lg-tbd { min-height: 30px; color: var(--muted); }
+.lg-run { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s3); margin: var(--s3) 0 0; padding-top: var(--s2); border-top: 1px solid var(--line); font-size: var(--text-xs); color: var(--muted); }
+.lg-cand { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); }
+.lg-cand .logo { width: 18px; height: 18px; }
 @container (max-width: 25rem) {
   .lg-rows.pre.can-pick { grid-template-columns: minmax(0, 1fr) 32px 47px 47px 47px 30px; gap: var(--s1) 3px; }
   .lg-rows.inplay.can-pick { grid-template-columns: minmax(0, max-content) minmax(26px, 1fr) 32px 46px 46px 46px 30px; gap: var(--s1) 3px; }

@@ -65,6 +65,20 @@ var CFP = (function () {
         ((sub.standings && sub.standings.entries) || []).forEach(function (e) { addTeam(e.team, key, sub.name); });
       });
     });
+    // Up to two networks, national first.
+    function tvOf(c) {
+      var tv = [];
+      (c.broadcasts || []).slice().sort(function (x, y) { return (x.market === 'national' ? 0 : 1) - (y.market === 'national' ? 0 : 1); })
+        .forEach(function (b) { (b.names || []).forEach(function (nm) { if (nm && tv.indexOf(nm) < 0) tv.push(nm); }); });
+      return tv.slice(0, 2);
+    }
+    // A live game's clock: the share of it left (frac), overtime (ot) and ESPN's status line (st).
+    function liveInto(g, ev, st) {
+      var es = ev.status || {}, per = +es.period || 1, clk = es.clock == null ? 900 : +es.clock;
+      if (per > 4) { g.ot = 1; g.frac = 0.25; }
+      else g.frac = Math.min(1, Math.max(0.003, ((4 - per) * 900 + clk) / 3600));
+      g.st = st.shortDetail || st.detail || '';
+    }
     var fbsCount = teams.length, games = [], titles = [], seen = {};
     (raw.weeks || []).forEach(function (wk) {
       (wk.events || []).forEach(function (ev) {
@@ -84,9 +98,22 @@ var CFP = (function () {
         var known = +hc.id > 0 && +ac.id > 0;
         if (titleConf) {
           var tg = { conf: titleConf, n: c.neutralSite ? 1 : 0, d: ev.date, s: state, h: -1, a: -1, w: -1 };
-          if (known) {
-            tg.h = addTeam(hc.team, 'fcs'); tg.a = addTeam(ac.team, 'fcs');
+          tg.id = String(ev.id); tg.wk = ev.week ? ev.week.number : null;
+          tg.place = c.venue && c.venue.fullName ? c.venue.fullName : '';
+          tg.tv = tvOf(c);
+          // ESPN names a team that has clinched before its opponent is known, sometimes by name only (with a
+          // made-up negative id): match it to the conference's team of that name. clinch lists who is in.
+          tg.clinch = [hc, ac].map(function (x) {
+            if (+x.id > 0) return addTeam(x.team, 'fcs');
+            var nm = String((x.team && (x.team.location || x.team.displayName)) || '').toLowerCase(), full = String((x.team && x.team.displayName) || '').toLowerCase();
+            for (var q = 0; q < teams.length; q++) if (teams[q].conf === titleConf && (teams[q].name.toLowerCase() === nm || teams[q].name.toLowerCase() === full || String(teams[q].full).toLowerCase() === full)) return q;
+            return -1;
+          }).filter(function (q) { return q >= 0; });
+          if (known || tg.clinch.length === 2) {
+            tg.h = tg.clinch[0]; tg.a = tg.clinch[1];
+            if (state !== 'pre') { tg.hs = +hc.score || 0; tg.as = +ac.score || 0; }
             if (state === 'post') tg.w = +hc.score > +ac.score ? tg.h : tg.a;
+            else if (state === 'in') liveInto(tg, ev, st);
           }
           titles.push(tg);
           return;
@@ -95,10 +122,8 @@ var CFP = (function () {
         var h = addTeam(hc.team, 'fcs'), a = addTeam(ac.team, 'fcs');
         var g = { id: String(ev.id), d: ev.date, h: h, a: a, n: c.neutralSite ? 1 : 0, c: c.conferenceCompetition ? 1 : 0, s: state, w: -1, wk: ev.week ? ev.week.number : null };
         // TV networks, national first, e.g. ["ABC"] or ["ESPN+", "SECN+"].
-        var tv = [];
-        (c.broadcasts || []).slice().sort(function (x, y) { return (x.market === 'national' ? 0 : 1) - (y.market === 'national' ? 0 : 1); })
-          .forEach(function (b) { (b.names || []).forEach(function (nm) { if (nm && tv.indexOf(nm) < 0) tv.push(nm); }); });
-        if (tv.length) g.tv = tv.slice(0, 2);
+        var tv = tvOf(c);
+        if (tv.length) g.tv = tv;
         if (state === 'post') {
           g.hs = +hc.score; g.as = +ac.score;
           g.w = (hc.winner === true || (hc.winner !== false && g.hs > g.as)) ? h : a;
@@ -106,11 +131,8 @@ var CFP = (function () {
           // Share of regulation left: 4 quarters of 900 seconds.
           // Overtime: both teams get the ball, so a lead after one possession isn't banked. Treat it as about
           // one possession of randomness left (a quarter of a game's) with half the lead counting (g.ot).
-          var es = ev.status || {}, per = +es.period || 1, clk = es.clock == null ? 900 : +es.clock;
           g.hs = +hc.score || 0; g.as = +ac.score || 0;
-          if (per > 4) { g.ot = 1; g.frac = 0.25; }
-          else g.frac = Math.min(1, Math.max(0.003, ((4 - per) * 900 + clk) / 3600));
-          g.st = st.shortDetail || st.detail || '';
+          liveInto(g, ev, st);
         }
         games.push(g);
       });
@@ -494,6 +516,13 @@ var CFP = (function () {
   // apart), so it gets its own place: after the last regular week before the title games, while any title game
   // is unfinished. status(g) gives a game's state ('pre', 'in', 'post'); now is a time in ms.
   // Returns { wk, ccg }: ccg is true in championship week, when wk is that week's number.
+  // Championship week's number: one past the last week played before the first title game (null without any).
+  function ccgWeek(games, titles) {
+    if (!titles || !titles.length) return null;
+    var first = Math.min.apply(null, titles.map(function (t) { return Date.parse(t.d); })), before = null;
+    games.forEach(function (g) { if (g.wk != null && Date.parse(g.d) < first && (before == null || g.wk > before)) before = g.wk; });
+    return before == null ? null : before + 1;
+  }
   function tableWeek(games, titles, now, status) {
     status = status || function (g) { return g.s; };
     var weeks = [], wk = null, i;
@@ -502,13 +531,7 @@ var CFP = (function () {
     if (!weeks.length) return { wk: null, ccg: false };
     games.forEach(function (g) { if (g.wk != null && Date.parse(g.d) <= now && (wk == null || g.wk > wk)) wk = g.wk; });
     if (wk == null) wk = weeks[0];
-    // Championship week: one past the last week played before the first title game.
-    var ccgWk = null, pending = (titles || []).filter(function (t) { return !(t.w >= 0) && t.s !== 'post'; });
-    if (titles && titles.length) {
-      var first = Math.min.apply(null, titles.map(function (t) { return Date.parse(t.d); })), before = null;
-      games.forEach(function (g) { if (g.wk != null && Date.parse(g.d) < first && (before == null || g.wk > before)) before = g.wk; });
-      if (before != null) ccgWk = before + 1;
-    }
+    var ccgWk = ccgWeek(games, titles), pending = (titles || []).filter(function (t) { return !(t.w >= 0) && t.s !== 'post'; });
     function over(w) {
       var list = games.filter(function (g) { return g.wk === w; });
       return list.length > 0 && list.every(function (g) { return status(g) === 'post'; });
@@ -586,7 +609,8 @@ var CFP = (function () {
       // Title game picks, "ccg:<conf>:<team id>": 'W' wins the title game, or 'L' loses it, whenever it plays in it.
       var say = {};
       if (picks) confs[t.conf].forEach(function (x) { var v = picks['ccg:' + t.conf + ':' + T[x].id]; if (v === 'W' || v === 'L') say[x] = v; });
-      return { conf: t.conf, members: confs[t.conf], divs: divs, n: t.n, h: t.h, a: t.a, w: t.w, s: t.s, say: say };
+      return { conf: t.conf, members: confs[t.conf], divs: divs, n: t.n, h: t.h, a: t.a, w: t.w, s: t.s, say: say, clinch: t.h >= 0 && t.a >= 0 ? [] : t.clinch || [],
+        cur: t.s === 'in' && t.hs != null ? (t.hs - t.as) * (t.ot ? 0.5 : 1) : 0, f: t.s === 'in' && t.frac ? t.frac : 1 };
     });
     // The CFP ranking going into a team's final week, where the tiebreakers use it: the real ranking once only
     // that week is left (or none), else the simulated one.
@@ -798,14 +822,22 @@ var CFP = (function () {
     for (i = 0; i < P.titles.length; i++) {
       var tg = P.titles[i], x, y, wt;
       if (tg.h >= 0 && tg.a >= 0) { x = tg.h; y = tg.a; }
-      else { var two = TB.top2(tg.conf, tg.members, this.ctx, tg.divs); x = two[0]; y = two[1]; } // x: the No. 1 seed
+      else { var two = TB.top2(tg.conf, tg.members, this.ctx, tg.divs); x = two[0]; y = two[1]; // x: the No. 1 seed
+        // A team the conference says has clinched is in, whatever the stand-in ratings made of a tie.
+        if (tg.clinch.length === 1 && x !== tg.clinch[0] && y !== tg.clinch[0]) y = tg.clinch[0];
+      }
       inT[x] = 1; inT[y] = 1;
-      if (tg.w >= 0) wt = tg.w;
-      else {
+      if (tg.w >= 0) {
+        // Played: the loser takes the loss, as in a simulated one.
+        wt = tg.w;
+        var lf = wt === x ? y : x;
+        L[lf]++; this.tL[lf]++; H[wt * n + lf]++;
+        pw[np] = wt; pl[np] = lf; np++;
+      } else {
         // Non-neutral title games are hosted by the No. 1 seed (the home team once the matchup is set).
         var xh = tg.n ? 0 : P.hfa;
         var spr = R[x] - R[y] + xh;
-        wt = spr + eps[x] - eps[y] + this.g() * M.gameSD > 0 ? x : y;
+        wt = tg.cur + tg.f * (spr + eps[x] - eps[y]) + Math.sqrt(tg.f) * this.g() * M.gameSD > 0 ? x : y;
         // A pick decides it; two picks that contradict each other (both win, or both lose) leave it to the game.
         var sx = tg.say[x], sy = tg.say[y];
         if (sx !== sy) wt = sx === 'W' || sy === 'L' ? x : y;
@@ -961,7 +993,7 @@ var CFP = (function () {
 
   return {
     M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, CONF_ABBR: CONF_ABBR, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, projectRanking: projectRanking, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
-    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp, measureSwings: measureSwings, TB: TB, tableWeek: tableWeek
+    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp, measureSwings: measureSwings, TB: TB, tableWeek: tableWeek, ccgWeek: ccgWeek
   };
 })();
 if (typeof module !== 'undefined') module.exports = CFP;

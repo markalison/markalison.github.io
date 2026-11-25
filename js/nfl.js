@@ -117,13 +117,16 @@
   function shaded(v) { return '<td class="sec pct-cell" style="--p:' + (v || 0).toFixed(3) + '">' + pct(v) + '</td>'; }
   // Next: the W / L / blank box with the opponent under it, as in the college table.
   // Next shows only the coming week's game (the Scores page's week): a team on a bye that week gets a blank cell
-  // rather than its game after the bye. A team whose game this week is already over shows next week's game.
+  // rather than its game after the bye. Once the game is over it shows the result, until the week moves on.
   function nextCell(i) {
-    var id = nextOpen(i);
-    if (id == null) return '<td class="pick">—</td>';
-    var cw = currentWeek();
-    if (gameById[id].wk > cw && !D.games.some(function (g) { return g.wk === cw && (g.h === i || g.a === i); })) return '<td class="pick"></td>';
-    var g = gameById[id], home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
+    var cw = currentWeek(), g = D.games.filter(function (x) { return x.wk === cw && (x.h === i || x.a === i); })[0];
+    if (!g) return '<td class="pick"></td>';
+    var id = g.id;
+    if (sbStat(g) === 'post') {
+      var mine = g.h === i ? g.hs : g.as, theirs = g.h === i ? g.as : g.hs, o2 = D.teams[g.h === i ? g.a : g.h], rs = mine > theirs ? 'W' : mine < theirs ? 'L' : 'T';
+      return '<td class="pick"><div class="nx-cell"><span class="nx-res"><b class="res' + (rs === 'W' ? ' res-w' : rs === 'L' ? ' res-l' : '') + '">' + rs + '</b>' + mine + '\u2013' + theirs + '</span><span class="nx-vs">' + (g.h === i ? 'vs ' : '@') + esc(o2.ab) + '</span></div></td>';
+    }
+    var home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
     var pk = st.picks[id], tie = pk === 'T', won = pk === i, lost = pk != null && !won && !tie;
     var label = won ? D.teams[i].short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? D.teams[i].short + ' ' + vs + ' picked to lose. Press to pick a tie' : tie ? D.teams[i].short + ' ' + vs + ' picked to tie. Press to clear the pick' : 'No pick for ' + D.teams[i].short + ' ' + vs + '. Press to pick a win';
     return '<td class="pick"><div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : tie ? ' pick-t' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : tie ? 'T' : '') + '</button></div>' +

@@ -184,7 +184,7 @@ for (const mode of ['blend', 'all'].concat(models.map((m) => m.k))) {
 {
   const t0 = Date.now();
   // Before its first ranking the committee's picks are the model's alone, so past weeks leave out today's CFP ranking.
-  const past = { ...D, rankDate: null, teams: D.teams.map((t) => ({ ...t, rank: undefined })) };
+  const past = { ...D, rankDate: null, titles: D.titles.map((t) => ({ conf: t.conf, n: t.n, d: t.d, s: 'pre', h: -1, a: -1, w: -1 })), teams: D.teams.map((t) => ({ ...t, rank: undefined })) };
 // Preseason: last season's final FPI, pulled a third of the way to average, centred on today's Massey +
   // Sagarin average (teams without one keep today's rating). It's a ratings mode of its own, 'pre'.
   let pre = null;

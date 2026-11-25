@@ -99,6 +99,8 @@
       if (won) w++; else l++;
       if (g.c) { if (won) cw++; else cl++; }
     });
+    // A conference title game counts in the overall record.
+    D.titles.forEach(function (t) { if (t.w >= 0 && (t.h === i || t.a === i)) { if (t.w === i) w++; else l++; } });
     return { w: w, l: l, cw: cw, cl: cl, text: w + '-' + l };
   }
   var projCache = { D: null, by: {} };
@@ -328,7 +330,7 @@
     if (titleOver(tg)) {
       if (!inGame) return '';
       var won = tg.w === x.i, label = x.t.name + (won ? ' won' : ' lost') + ' the conference championship' + (opp ? (won ? ' over ' : ' to ') + opp.name : '');
-      return '<div class="nx-cell" title="' + esc(label) + '"><span class="nx-res" aria-label="' + esc(label) + '"><b class="res ' + (won ? 'res-w' : 'res-l') + '">' + (won ? 'W' : 'L') + '</b></span>' + (opp ? '<span class="nx-vs" aria-hidden="true">vs ' + esc(opp.ab || opp.name) + '</span>' : '') + '</div>';
+      return '<div class="nx-cell" title="' + esc(label) + '"><span class="nx-res" aria-label="' + esc(label) + '"><b class="res ' + (won ? 'res-w' : 'res-l') + '">' + (won ? 'W' : 'L') + '</b>' + (tg.hs == null ? '' : tg.h === x.i ? tg.hs + '–' + tg.as : tg.as + '–' + tg.hs) + '</span>' + (opp ? '<span class="nx-vs" aria-hidden="true">vs ' + esc(opp.ab || opp.name) + '</span>' : '') + '</div>';
     }
     if (set ? !inGame : !(x.r.ccg > 0)) return '';
     return ccgBox(x, tg, opp);
@@ -1181,6 +1183,39 @@
       '</div>' +
     '</article>';
   }
+  // A conference title game on the Scores page. A team is named once it has clinched; until then its row is TBD,
+  // with the likeliest teams (by this site's simulations) under the rows.
+  function titleCard(tg) {
+    var over = titleOver(tg), live = tg.s === 'in' && !over, set = tg.h >= 0 && tg.a >= 0, rows = set ? [tg.a, tg.h] : (tg.clinch || []).slice(0, 1), R = res();
+    while (rows.length < 2) rows.push(-1);
+    var M = CFP.M, hp = null;
+    if (set && !over) {
+      var sp = R.rating[tg.h] - R.rating[tg.a] + (tg.n ? 0 : (D.sources.hfa[st.mode] || 2.5)), f = live ? tg.frac || 1 : 1, cur = live ? (tg.hs - tg.as) * (tg.ot ? 0.5 : 1) : 0;
+      hp = CFP.phi((cur + f * sp) / Math.sqrt(f * M.gameSD * M.gameSD + f * f * 2 * M.teamSD * M.teamSD));
+    }
+    var when = new Date(tg.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+    var top = live ? '<span class="lg-live"><b><span class="lg-clock">' + esc(clock(tg)) + '</span></b></span>' : over ? '<span class="lg-live"><span class="final-pill">FINAL</span></span>' : '<b class="lg-kickoff">' + when + ', ' + etTime(tg.d) + ' ET</b>';
+    var scored = live || over;
+    function row(i) {
+      if (i < 0) return '<div class="lg-team lg-tbd"><span>TBD</span></div>' + (scored ? '<div></div>' : '') + '<div class="lg-num">—</div><div class="lg-num">—</div>' + (over ? '' : '<span></span>');
+      var t = D.teams[i], r = R.teams[i], sc = i === tg.h ? tg.hs : tg.as, ot = i === tg.h ? tg.as : tg.hs;
+      return '<div class="lg-team">' + logo(t, 22) + '<span>' + teamLink(i, (t.rank ? '<small class="lg-rank">' + t.rank + '</small>' : '') + esc(t.ab || t.name)) + ' <small class="lg-rec">(' + record(i).text + ')</small></span></div>' +
+        (scored ? '<div class="lg-score' + (sc >= ot ? ' lead' : '') + '">' + (sc == null ? '' : sc) + '</div>' : '') +
+        '<div class="lg-num">' + (over ? (tg.w === i ? 'W' : 'L') : hp == null ? '—' : Math.round((i === tg.h ? hp : 1 - hp) * 100) + '%') + '</div>' +
+        '<div class="lg-cfp" style="--p:' + r.cfp.toFixed(3) + '">' + pct(r.cfp) + '</div>' +
+        (over ? '' : '<span class="lg-pick">' + ccgBox({ i: i, t: t, r: r }, tg, set ? D.teams[i === tg.h ? tg.a : tg.h] : null, true) + '</span>');
+    }
+    var run = '';
+    if (!set && !over) {
+      var c = [];
+      for (var i = 0; i < D.fbs; i++) if (D.teams[i].conf === tg.conf && rows.indexOf(i) < 0 && R.teams[i].ccg >= 0.005) c.push(i);
+      c.sort(function (a, b) { return R.teams[b].ccg - R.teams[a].ccg; });
+      run = c.length ? '<p class="lg-run"><span>Could reach it</span>' + c.slice(0, 5).map(function (i) { return '<span class="lg-cand">' + logo(D.teams[i], 18) + teamLink(i, esc(D.teams[i].ab || D.teams[i].name)) + ' ' + pct(R.teams[i].ccg) + '</span>'; }).join('') + '</p>' : '';
+    }
+    return '<article class="lg lg-title' + (live ? ' on' : '') + '"><div class="lg-top"><b>' + confLink(tg.conf, esc(CFP.CONF_NAME[tg.conf] || tg.conf) + ' Championship') + '</b>' +
+      (over ? '' : '<span class="tv-list net-logos">' + (tg.tv && tg.tv.length ? tvBadges(tg.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>') + '</div><p class="lg-site">' + top + (tg.place ? '<span>' + esc(tg.place) + '</span>' : '') + '</p>' +
+      '<div class="lg-rows title-rows' + (scored ? ' scored' : '') + (over ? ' over' : '') + '"><span></span>' + (scored ? '<span class="h">Score</span>' : '') + '<span class="h">' + (over ? '' : 'Win') + '</span><span class="h">Make CFP</span>' + (over ? '' : '<span class="h">Pick</span>') + rows.map(row).join('') + '</div>' + run + '</article>';
+  }
   // Playoff impact on the Scores page, measured as total swing in Make CFP odds across every team.
   // Every game of today goes back to unplayed, so live scores don't count (a pre-game view):
   //  - a final: its real result against the game left open,
@@ -1227,11 +1262,8 @@
   // is over (final, or kicked off over 5 hours ago, so a postponed game can't hold it), e.g. Sunday morning
   // after Saturday's games, rather than waiting for next week's first kickoff.
   function scoreWeek() {
-    var wk = weekGames().wk, now = Date.now(), counts = function (g) { return g.h < D.fbs || g.a < D.fbs; };
-    var games = D.games.filter(function (g) { return g.wk === wk && counts(g); });
-    var over = games.length && games.every(function (g) { return g.s === 'post' || Date.parse(g.d) < now - 5 * 3600000; });
-    var later = D.games.filter(function (g) { return g.wk > wk && counts(g); });
-    return over && later.length ? Math.min.apply(null, later.map(function (g) { return g.wk; })) : wk;
+    var now = Date.now();
+    return CFP.tableWeek(D.games.filter(function (g) { return g.h < D.fbs || g.a < D.fbs; }), D.titles, now, function (g) { return Date.parse(g.d) < now - 5 * 3600000 ? 'post' : g.s; }).wk;
   }
   // The weeks on the Scores page, with their date range, e.g. "Week 10 · Nov 3–7".
   function scoreWeeks() {
@@ -1242,6 +1274,14 @@
       if (g.d < w.first) w.first = g.d;
       if (g.d > w.last) w.last = g.d;
     });
+    // Championship week: the conference title games.
+    var cw = CFP.ccgWeek(D.games, D.titles);
+    if (cw != null) D.titles.forEach(function (t) {
+      var w = m[cw] = m[cw] || { wk: cw, first: t.d, last: t.d };
+      w.ccg = true;
+      if (t.d < w.first) w.first = t.d;
+      if (t.d > w.last) w.last = t.d;
+    });
     return Object.keys(m).map(function (k) { return m[k]; }).sort(function (x, y) { return x.wk - y.wk; });
   }
   function weekLabel(w) {
@@ -1249,7 +1289,7 @@
     var a = md(w.first), b = md(w.last);
     if (a === b) return 'Week ' + w.wk + ' · ' + a;
     if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1];
-    return 'Week ' + w.wk + ' · ' + a + '–' + b;
+    return (w.ccg ? 'Championship week' : 'Week ' + w.wk) + ' · ' + a + '–' + b;
   }
   // Live games first, then games still to come, then finals, for the chosen week; each group by start time
   // (the default) or by playoff impact.
@@ -1269,7 +1309,7 @@
       if (!w) { cells += '<button type="button" class="day-btn' + cls + '" disabled aria-hidden="true" tabindex="-1"></button>'; continue; }
       var n = count(w.wk);
       cells += '<button type="button" class="day-btn' + cls + (w.wk === curWk ? ' today' : '') + '" data-week="' + w.wk + '" aria-pressed="' + (k === 0) + '" aria-label="' + esc('Week ' + w.wk + ', ' + range(w) + (w.wk === curWk ? ' (current)' : '')) + '">' +
-        '<span class="dw">Week ' + w.wk + '</span><span class="dd">' + esc(range(w)) + '</span><span class="dc">' + n + (n === 1 ? ' game' : ' games') + '</span></button>';
+        '<span class="dw">' + (w.ccg ? 'Conf. champ.' : 'Week ' + w.wk) + '</span><span class="dd">' + esc(range(w)) + '</span><span class="dc">' + n + (n === 1 ? ' game' : ' games') + '</span></button>';
     }
     el.innerHTML = arrow(-1) + '<div class="day-cells">' + cells + '</div>' + arrow(1);
   }
@@ -1286,7 +1326,7 @@
     var sel = st.sbWeek != null && weeks.some(function (w) { return w.wk === st.sbWeek; }) ? st.sbWeek : current;
     // The week strip sits on top, with the Conference and Sort row under it and the week's games below.
     renderWeekStrip(weekStripEl(document.querySelector('#page-scoreboard .sb-bar'), $('sb-week').closest('.filters')), weeks, sel, current,
-      function (wk) { return D.games.filter(function (g) { return g.wk === wk && (g.h < D.fbs || g.a < D.fbs); }).length; });
+      function (wk) { return D.games.filter(function (g) { return g.wk === wk && (g.h < D.fbs || g.a < D.fbs); }).length + (wk === CFP.ccgWeek(D.games, D.titles) ? D.titles.length : 0); });
     $('sb-week').innerHTML = weeks.map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === current ? ' (current)' : '') + '</option>';
     }).join('');
@@ -1346,10 +1386,19 @@
         return group(label + (tag ? ' · ' + tag : ''), m[k], n === 0 ? note : '');
       }).join('');
     }
-    $('live-board').innerHTML =
+    // Championship week: the title games by day, above any other games that week.
+    var ccgHtml = '';
+    if (sel === CFP.ccgWeek(D.games, D.titles)) {
+      var tl = D.titles.filter(function (t) { return !sbConf || (sbGroup ? (CFP.P4.indexOf(t.conf) >= 0) === (sbGroup === 'p4') : t.conf === sbConf); }).sort(kickoff), dk = [], dm = {};
+      tl.forEach(function (t) { var k = etDay(t.d); if (!dm[k]) { dm[k] = []; dk.push(k); } dm[k].push(t); });
+      ccgHtml = dk.map(function (k) {
+        return '<div class="live-group"><h4>' + new Date(dm[k][0].d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + '</h4><div class="live-grid">' + dm[k].map(titleCard).join('') + '</div></div>';
+      }).join('');
+    }
+    $('live-board').innerHTML = ccgHtml +
       (live.length || later.length || done.length ?
         group(live.length ? 'In progress' : '', live, note) + byDay(later, '', live.length ? '' : note) + byDay(done, 'Final', live.length || later.length ? '' : note) :
-        '<p class="live-empty">No ' + who + 'games this week.' + (nextText ? ' ' + nextText : '') + '</p>');
+        ccgHtml ? '' : '<p class="live-empty">No ' + who + 'games this week.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
   var PAGES = { rankings: 'Playoff Odds Board', playoff: 'Playoff bracket · Playoff Odds Board', scoreboard: 'Scores · Playoff Odds Board', team: 'Team · Playoff Odds Board', conf: 'Conference · Playoff Odds Board' };

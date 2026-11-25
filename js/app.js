@@ -789,11 +789,11 @@
   function favHtml(f) { return f ? '<a class="tlink cf-fav" href="' + teamHref(f.i) + '" title="' + esc(f.t.name + ' is the likeliest champion') + '"><span>' + pct(f.r.champ) + '</span>' + logo(f.t, 26) + '</a>' : '—'; }
   // The row of conferences under the header: All, then each one.
   function confNav() {
-    $('conf-nav').innerHTML = '<a href="#standings"' + (st.confKey ? '' : ' aria-current="page"') + '>All</a>' + confKeys().map(function (k) { return '<a href="' + confHref(k) + '"' + (k === st.confKey ? ' aria-current="page"' : '') + '>' + esc(confName(k)) + '</a>'; }).join('');
+    $('conf-nav').innerHTML = '<a href="#conferences"' + (st.confKey ? '' : ' aria-current="page"') + '>All</a>' + confKeys().map(function (k) { return '<a href="' + confHref(k) + '"' + (k === st.confKey ? ' aria-current="page"' : '') + '>' + esc(confName(k)) + '</a>'; }).join('');
     var on = $('conf-nav').querySelector('[aria-current]'), nav = $('conf-nav');
     if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = on.offsetLeft - nav.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2;
   }
-  // #standings: the conferences compared, then each one's top five.
+  // #conferences: the conferences compared, then each one's top five.
   function renderStandings() {
     var all = buildRows(), list = confKeys().map(function (c) { return confSummary(c, all); });
     var CS = { name: function (s) { return s.name.toLowerCase(); }, ranked: function (s) { return s.ranked; }, index: function (s) { return s.index; }, bids: function (s) { return s.bids; }, title: function (s) { return s.title; }, fav: function (s) { return s.fav ? s.fav.r.champ : -1; } };
@@ -801,7 +801,7 @@
     var cards = list.slice();
     if (st.cs) list.sort(cmp(CS[st.cs.k], st.cs.dir));
     var most = Math.max.apply(null, list.map(function (s) { return s.bids; }));
-    $('conf-page').innerHTML = '<section class="tp-card">' + cardHead('Conferences', '') + '<div class="table-wrap"><table class="tp-table tp-stand cf-table cs-table"><thead><tr>' +
+    $('conf-page').innerHTML = '<section class="tp-card">' + cardHead('How they compare', '') + '<div class="table-wrap"><table class="tp-table tp-stand cf-table cs-table"><thead><tr>' +
         sortTh('cs', 'name', 'Conference') + sortTh('cs', 'ranked', 'Ranked', 'cf-wide', 'Teams in the CFP top 25') + sortTh('cs', 'index', 'Avg. index', 'cf-wide', 'Average ' + modeName() + ' rating') +
         sortTh('cs', 'bids', 'CFP bids', '', 'Average number of teams in the 12-team playoff') + sortTh('cs', 'title', 'Win CFP', '', 'Chance one of its teams wins the national championship') + sortTh('cs', 'fav', 'Favorite', '', 'The likeliest conference champion and its chance') + '</tr></thead><tbody>' +
         list.map(function (s) {
@@ -818,6 +818,7 @@
   function renderConf() {
     if ($('page-conf').hidden) return;
     confNav();
+    $('conf-title').hidden = !!st.confKey; // a conference's own page has its name in the panel below
     if (!st.confKey) { renderStandings(); return; }
     var c = st.confKey, ind = c === 'ind', s = confSummary(c, buildRows()), rows = s.rows, info = weekInfo();
     var tg = D.titles.filter(function (t) { return t.conf === c; })[0];
@@ -836,7 +837,7 @@
     $('conf-page').innerHTML = '<div class="tp-head cf-head"><div class="tp-id">' + confLogo(c) + '<div class="tp-name"><h2>' + esc(s.name) + '</h2></div></div><dl class="tp-standing">' +
         tile('Ranked', s.ranked, 'Teams in the current CFP top 25') + tile('CFP bids', s.bids.toFixed(1), 'Average number of teams in the 12-team playoff') + tile('Win CFP', pct(s.title), 'Chance that one of its teams wins the national championship') +
         (s.fav ? tile('Favorite', favHtml(s.fav), 'Most likely conference champion: ' + esc(s.fav.t.name)) : '') + '</dl></div>' +
-      '<div class="cf-main' + (side ? '' : ' cf-solo') + '"><section class="tp-card">' + cardHead('Teams', rows.length) + confTable(rows, ind) + '</section>' + (side ? '<div class="cf-side">' + side + '</div>' : '') + '</div>' +
+      '<div class="cf-main' + (side ? '' : ' cf-solo') + '"><section class="tp-card">' + cardHead(ind ? 'Teams' : 'Standings', rows.length + ' teams') + confTable(rows, ind) + '</section>' + (side ? '<div class="cf-side">' + side + '</div>' : '') + '</div>' +
       (games.length ? '<section class="tp-card cf-games">' + cardHead('Week ' + info.wk + ' games', games.length + (games.length === 1 ? ' game' : ' games')) + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></section>' : '');
     if (open) $('conf-page').querySelector('.cf-tbd').open = true;
   }
@@ -1489,8 +1490,8 @@
     st.teamView = tm && tm[2] ? 'history' : 'season';
     // A conference's page: #conf/<name>.
     var cm = /^conf\/([^/]+)\/?$/.exec(hash), ck = cm ? confKeys().filter(function (k) { return confSlug(k) === cm[1].toLowerCase(); })[0] : null;
-    // #standings lists every conference (an unknown one goes there too).
-    if (cm || hash === 'standings' || hash === 'conf') { p = 'conf'; st.confKey = ck || ''; }
+    // #conferences lists every conference (an unknown one goes there too).
+    if (cm || hash === 'conferences' || hash === 'standings' || hash === 'conf') { p = 'conf'; st.confKey = ck || ''; }
     var team = p === 'team' ? D.teams[ti] : null;
     if (team) st.team = team.id;
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
@@ -1503,8 +1504,8 @@
     document.title = team ? team.name + (hist ? ' history' : ' playoff odds') + ' · Playoff Odds Board' : PAGES[p];
     $('page-title').textContent = team ? team.name + (hist ? ' history' : ' playoff odds') : INTRO[p][0];
     if (p === 'conf') {
-      var cn = ck ? confName(ck) : 'Conference';
-      document.title = cn + ' football standings and playoff odds · Playoff Odds Board';
+      var cn = ck ? confName(ck) : 'All conferences';
+      document.title = (ck ? cn + ' football standings' : 'College football conferences') + ' and playoff odds · Playoff Odds Board';
       $('page-title').textContent = cn + ' standings and playoff odds';
       renderConf();
     }

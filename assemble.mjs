@@ -121,7 +121,7 @@ const header = (page) => {
     <div class="sport-now"><img src="${cur.logo}" alt=""><span>${cur.name}</span></div>
     <nav class="tabs" aria-label="${pro ? cur.name : 'College football'} views">
       <a href="${base}#rankings" data-page="rankings">${pro ? 'Standings' : 'Rankings'}</a>${pro ? '' : `
-      <a href="${base}#standings" data-page="conf">Standings</a>`}
+      <a href="${base}#conferences" data-page="conf"><span class="tab-long">Conferences</span><span class="tab-short">Confs</span></a>`}
       <a href="${base}#playoff" data-page="playoff">Bracket</a>
       <a href="${base}#scores" data-page="scoreboard">Scores</a>
     </nav>

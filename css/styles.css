@@ -1295,6 +1295,10 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .cf-nav a[aria-current] { color: var(--ink); border-color: var(--accent); }
 .cf-filters { align-items: flex-end; }
 .cf-title { margin: 0; }
+.cf-filters { justify-content: space-between; }
+.cf-filters .ctl { margin-left: auto; }
+.tab-short { display: none; }
+@media (max-width: 639px) { .tab-long { display: none; } .tab-short { display: inline; } }
 .cf-fav { justify-content: flex-end; }
 .cs-name { gap: 10px; }
 .cs-logo { display: inline-flex; flex: none; justify-content: center; width: 44px; --lh: 20px; }

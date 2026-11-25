@@ -1124,7 +1124,7 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-card h3 { --lh: 18px; }
 .tp-card h3 .conf-logo { margin: -5px 6px -3px 0; }
 .tp-resume { flex: 1 1 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
-.tp-odds > div.tp-lead { order: -1; } /* Make CFP first on phones and tablets */
+.tp-odds > div.tp-lead { order: -1; } /* Make CFP takes the top left cell */
 .tp-picks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); font-size: var(--text-sm); color: var(--muted); }
 .tp-picks b { color: var(--ink); font-weight: 600; }
 /* Headline odds: tiles shaded by their value, like the table's cells. */
@@ -1136,13 +1136,13 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
    tablets (the standings go under the charts). On phones the columns dissolve and the cards run in one order:
    schedule, Make CFP over time, seed chart, standings. */
 .tp-grid { display: grid; gap: var(--s4); align-content: start; }
-.tp-col { display: contents; }
-.tp-1 { order: 1; }
-.tp-2 { order: 2; }
-.tp-3 { order: 3; }
-.tp-4 { order: 4; }
+/* The odds, with the two small charts beside them on wide screens and under them, side by side, elsewhere. */
+.tp-top-row { display: grid; gap: var(--s5); }
+.tp-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
 .tp .ap-chart svg { max-width: none; }
-.tp .hist, .tp .hist-ax { height: 120px; }
+.tp .hist, .tp .hist-ax { height: 62px; }
+.tp .hist { gap: 1px; }
+.tp .hist-x { gap: 1px; font: 600 9px/1.2 var(--display); }
 /* The page's two tables, schedule and standings: a line a row. The column of team names takes the room that's
    left and trims a long name. */
 .tp-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
@@ -1198,12 +1198,11 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 }
 @media (min-width: 900px) {
   .tp-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; }
-  .tp-col { display: grid; gap: var(--s4); align-content: start; min-width: 0; }
-  .tp-col:first-child { grid-row: span 2; }
+  .tp-top-row { grid-template-columns: minmax(0, 1fr) minmax(0, 440px); align-items: center; gap: var(--s6); }
+  .tp-grid.tp-solo { grid-template-columns: minmax(0, 1fr); }
 }
 @media (min-width: 1100px) {
-  .tp-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); }
-  .tp-col:first-child { grid-row: auto; }
+  .tp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (min-width: 900px) {
   .tp-head h2 { font-size: var(--text-2xl); }
@@ -1211,8 +1210,6 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
   .tp-resume { grid-template-columns: repeat(5, auto); justify-content: start; column-gap: var(--s7, 40px); }
 }
 @media (min-width: 1100px) {
-  .tp-odds { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .tp-odds > div.tp-lead { order: 0; }
 }
 
 /* ---------- Team page finish ----------
@@ -1234,7 +1231,6 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-odds dd { margin: 0; font-size: 2.25rem; line-height: .95; letter-spacing: -.01em; }
 .tp-card { padding: 0; background: none; border: 0; box-shadow: none; }
 .tp-grid { column-gap: var(--s6); row-gap: var(--s6); }
-.tp-col { row-gap: var(--s6) !important; }
 .tp-card h3.tp-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); margin: 0 0 var(--s3); padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); font: 600 var(--text-sm)/1.2 var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--ink); }
 .tp-card h3.tp-h > span:first-child { display: flex; align-items: center; min-width: 0; }
 .tp-h-side { flex: none; font: 500 var(--text-sm)/1 var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
@@ -1242,7 +1238,11 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .tp-foot { margin: var(--s3) 0 0; font-size: var(--text-xs); color: var(--muted); }
 /* Charts: room for the labels. */
 .tp .ap-chart svg { margin-top: 0; }
-.tp .ap-y, .tp .ap-x { font-size: 10px; }
+.tp .ap-y, .tp .ap-x { font-size: 11px; }
+.tp .ap-dot { stroke-width: 1; }
+.tp .tp-odds { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 479px) { .tp .tp-odds > div { padding-inline: 10px; } .tp .tp-odds dd { font-size: 1.9rem; } }
+@media (min-width: 900px) { .tp .tp-odds > div.tp-lead { order: 0; } .tp .tp-odds > div { padding-block: 10px 12px; } }
 .tp .hist i { background: var(--bar); }
 /* Tables: rules between rows, a hover tint, the games still to play under their own divider, a live game marked. */
 .tp-table tbody tr > * { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }

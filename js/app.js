@@ -510,7 +510,7 @@
   function oddsChart(i, what) {
     var H = D.hist, v = H && H.v[i];
     if (!v || !v.length) return '<p class="ap-none">No history yet.</p>';
-    var n = v.length, W = 340, Hh = 150, L = 30, Rp = 8, T = 8, B = 18, dates = H.labels.some(function (l) { return /[a-z]/.test(l) && l !== 'Pre' && l !== 'Now'; });
+    var n = v.length, W = 210, Hh = 92, L = 31, Rp = 6, T = 7, B = 16, dates = H.labels.some(function (l) { return /[a-z]/.test(l) && l !== 'Pre' && l !== 'Now'; });
     var px = function (k) { return L + (n === 1 ? (W - L - Rp) / 2 : k * (W - L - Rp) / (n - 1)); };
     var py = function (x) { return T + (1000 - x) * (Hh - T - B) / 1000; };
     var grid = [1000, 500, 0].map(function (y) {
@@ -521,23 +521,23 @@
     v.forEach(function (x, k) { if (x != null) pts.push(px(k).toFixed(1) + ',' + py(x).toFixed(1)); });
     var line = pts.length > 1 ? '<polyline points="' + pts.join(' ') + '" class="ap-line"/>' : '';
     var dots = v.map(function (x, k) {
-      return x == null ? '' : '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="3" class="ap-dot"><title>' + histLabel(H.labels[k]) + ': ' + pct(x / 1000) + (H.src && H.src[k] === 'saved' ? ' (as the site had it then)' : H.src && (H.src[k] === 'rebuilt' || H.src[k] === 'pre') ? ' (rebuilt)' : '') + '</title></circle>';
+      return x == null ? '' : '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="2.2" class="ap-dot"><title>' + histLabel(H.labels[k]) + ': ' + pct(x / 1000) + (H.src && H.src[k] === 'saved' ? ' (as the site had it then)' : H.src && (H.src[k] === 'rebuilt' || H.src[k] === 'pre') ? ' (rebuilt)' : '') + '</title></circle>';
     }).join('');
-    var step = Math.max(1, Math.ceil(n / (dates ? 4 : 9)));
+    var step = Math.max(1, Math.ceil(n / (dates ? 3 : 5)));
     var xs = H.labels.map(function (l, k) {
-      if (k % step && k !== n - 1) return '';
-      return '<text x="' + px(k).toFixed(1) + '" y="' + (Hh - 4) + '" class="ap-x"' + (k === n - 1 && n > 1 ? ' text-anchor="end"' : k === 0 ? ' text-anchor="start"' : '') + '>' + (l === 'Pre' ? 'P' : l) + '</text>';
+      if (k !== n - 1 && (k % step || n - 1 - k < step)) return '';
+      return '<text x="' + px(k).toFixed(1) + '" y="' + (Hh - 4) + '" class="ap-x"' + (k === n - 1 && n > 1 ? ' style="text-anchor:end"' : k === 0 ? ' style="text-anchor:start"' : '') + '>' + (l === 'Pre' ? 'P' : l) + '</text>';
     }).join('');
     var label = D.teams[i].name + ', ' + what + ' over time: ' + v.map(function (x, k) { return histLabel(H.labels[k]) + ' ' + (x == null ? 'none' : pct(x / 1000)); }).join(', ');
     return '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="' + esc(label) + '">' + grid + line + dots + xs + '</svg>';
   }
   function oddsChartBlock(i, what, model) {
-    var H = D.hist, v = H && H.v[i], now = v && v.length ? v[v.length - 1] : null;
+    var H = D.hist;
     var how = what + ' after each ' + (H && H.labels.some(function (l) { return /^\d+$/.test(l); }) ? 'week' : 'week (Sunday night)') +
       '. Points marked "as the site had it" are the odds saved at the time; the others are rebuilt by re-running the season as it stood then, with ' +
       (H && H.past ? H.past : 'the ratings of that time') + '. The preseason point uses ' + (H && H.pre ? H.pre : 'preseason ratings') +
       '. The last point is now, with today\'s ' + model + ' ratings.';
-    return '<div class="ap-chart">' + cardHead(what + ' over time', now != null ? '<b>' + pct(now / 1000) + '</b> now' : '', how) + oddsChart(i, what) + '</div>';
+    return '<div class="ap-chart">' + cardHead(what + ' over time', '', how) + oddsChart(i, what) + '</div>';
   }
   // A team-page card's heading: its name at the left and, at the right, the number it leads with.
   function cardHead(name, side, title) {
@@ -702,19 +702,19 @@
       '<th scope="col"><abbr title="Chance to play in the conference championship game">Make conf</abbr></th>' +
       '<th scope="col"><abbr title="Chance to win the conference championship">Win conf</abbr></th></tr></thead><tbody>' + body + '</tbody></table>';
   }
-  // Everything under the headline odds, in three columns on wide screens: the schedule, then Make CFP over time
-  // over the seed chart, then the conference standings. An independent has no standings, so its two charts take
-  // the second and third columns. Tablets fit the third column under the second; phones show one column:
-  // schedule, Make CFP over time, seed chart, standings.
+  // The headline odds with the two small charts beside them (under them, side by side, on narrow screens).
+  function teamTop(x) {
+    return '<div class="tp-top-row">' + teamOdds(x) + '<div class="tp-charts"><section class="tp-card">' + oddsChartBlock(x.i, 'Make CFP', 'Massey + Sagarin') + '</section>' +
+      '<section class="tp-card">' + cardHead('Projected seed', '', 'Share of all simulations at each seed; the bars add up to the Make CFP chance.') +
+      (x.r.seed ? seedChart(x) : '<p class="ap-none">Not in the field in any simulation.</p>') + '</section></div></div>';
+  }
+  // Then the schedule and, beside it on wide screens, the conference standings (an independent has none).
   function teamBody(x) {
     var ind = x.t.conf === 'ind';
     var conf = esc(CFP.CONF_NAME[x.t.conf] || x.t.conf);
     var sched = '<section class="tp-card tp-1" aria-label="Schedule and scores">' + cardHead('Schedule and scores', '<b>' + x.rec.text + '</b>' + (ind ? '' : ' · ' + x.rec.cw + '-' + x.rec.cl + ' conf.')) + teamSchedule(x) + '</section>';
-    var cfp = '<section class="tp-card tp-2">' + oddsChartBlock(x.i, 'Make CFP', 'Massey + Sagarin') + '</section>';
-    var seed = '<section class="tp-card tp-3">' + cardHead('Projected seed', '') +
-      (x.r.seed ? seedChart(x) + '<p class="tp-foot">Share of all simulations at each seed; the bars add up to the Make CFP chance.</p>' : '<p class="ap-none">Not in the field in any simulation.</p>') + '</section>';
     var stand = ind ? '' : '<section class="tp-card tp-4">' + cardHead(confLink(x.t.conf, confLogo(x.t.conf) + conf + ' standings'), '') + confStandings(x) + '</section>';
-    return '<div class="tp-grid"><div class="tp-col">' + sched + '</div><div class="tp-col">' + cfp + (ind ? '' : seed) + '</div><div class="tp-col">' + (ind ? seed : stand) + '</div></div>';
+    return '<div class="tp-grid' + (ind ? ' tp-solo' : '') + '">' + sched + stand + '</div>';
   }
   // ---------- Conference pages ----------
   // Each conference's own order for breaking a tie for its title game, in short (the rules engine.js TB plays).
@@ -786,7 +786,7 @@
     var n = Object.keys(st.picks).length;
     $('team-page').innerHTML = teamHead(x) +
       (n ? '<p class="tp-picks"><span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.</span><button class="btn" type="button" data-clearpicks="1">Clear picks</button></p>' : '') +
-      teamOdds(x) + teamBody(x);
+      teamTop(x) + teamBody(x);
   }
   // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
   var VIEW_NAME = { all: 'FBS', p4: 'Power 4', g5: 'Group of 6' };

@@ -1299,6 +1299,16 @@ details.eh-yr .eh-g li { padding: 3px 0; font-size: 13px; }
 .cf-h, #conf-page h3.tp-h { margin: 0 0 var(--s4); padding: 0 0 var(--s2); border-bottom: 2px solid var(--line); color: var(--ink); font: 700 1.5rem/1.1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
 #conf-page .cf-tbd summary { font-size: 1.5rem; letter-spacing: .02em; }
 #conf-page .tp-stand th { font-size: var(--text-sm); }
+#conf-page .cf-table thead th { padding-block: 14px; color: var(--ink); font-size: 1.0625rem; line-height: 1.1; white-space: normal; vertical-align: middle; }
+#conf-page .cs-table thead th { font-size: 1.3125rem; }
+#conf-page .cs-table td { height: 50px; font-size: 1.125rem; }
+#conf-page .cs-table .cs-logo { --lh: 24px; width: 54px; }
+@media (min-width: 900px) { #conf-page .cf-table:not(.cs-table) thead th:not(:first-child) { min-width: 62px; } #conf-page .cf-table:not(.cs-table) thead th.cf-odds { min-width: 84px; } }
+@media (min-width: 1200px) { #conf-page .cf-table:not(.cs-table) thead th.cf-odds { min-width: 104px; } }
+@media (min-width: 600px) and (max-width: 899px) { #conf-page .cs-table thead th { font-size: 1.0625rem; } #conf-page .cs-table.tp-stand th, #conf-page .cs-table.tp-stand td { padding-inline: 8px; } #conf-page .cf-table:not(.cs-table) thead th { font-size: .9375rem; } }
+@media (max-width: 599px) { #conf-page .cs-table td { font-size: 1rem; } #conf-page .cs-table .cs-logo { --lh: 18px; width: 34px; } }
+#conf-page .cf-card thead th { padding-block: 8px; color: var(--ink); font-size: 1rem; }
+@media (max-width: 599px) { #conf-page .cf-table thead th { padding-block: 10px; font-size: 1rem; letter-spacing: .02em; } }
 #conf-page .tp-head h2 { font-size: 2.5rem; }
 /* A panel per conference: name bar, its numbers, its top five, and the way to the rest. */
 .cf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr)); gap: var(--s5); }

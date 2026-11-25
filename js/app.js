@@ -777,7 +777,7 @@
     rows.forEach(function (y) { var d = st.cf ? '' : y.t.div || ''; (divs[d] = divs[d] || []).push(y); });
     var names = Object.keys(divs).sort(), n = ind ? 7 : 10;
     return '<div class="table-wrap"><table class="tp-table tp-stand cf-table"><thead><tr>' + sortTh('cf', 'team', 'Team') + (ind ? '' : sortTh('cf', 'conf', 'Conf', '', 'Conference record')) + sortTh('cf', 'ovr', 'Ovr', 'cf-wide', 'Overall record') + sortTh('cf', 'index', 'Index', 'cf-wide', modeName() + ' rating') +
-      '<th scope="col" class="pick">' + (info.ccg ? 'CCG' : 'Wk ' + info.wk) + '</th>' + (ind ? '' : sortTh('cf', 'ccg', 'Make conf') + sortTh('cf', 'champ', 'Win conf')) + sortTh('cf', 'bye', '1st rd bye', 'cf-wide') + sortTh('cf', 'cfp', 'Make CFP') + sortTh('cf', 'title', 'Win CFP', 'cf-wide') + '</tr></thead><tbody>' +
+      '<th scope="col" class="pick">' + (info.ccg ? 'CCG' : 'Wk ' + info.wk) + '</th>' + (ind ? '' : sortTh('cf', 'ccg', 'Make conf', 'cf-odds') + sortTh('cf', 'champ', 'Win conf', 'cf-odds')) + sortTh('cf', 'bye', '1st rd bye', 'cf-wide cf-odds') + sortTh('cf', 'cfp', 'Make CFP', 'cf-odds') + sortTh('cf', 'title', 'Win CFP', 'cf-wide cf-odds') + '</tr></thead><tbody>' +
       names.map(function (d) { return (names.length > 1 ? '<tr class="st-div"><th colspan="' + n + '" scope="rowgroup">' + esc(d.replace(/^.* - /, '')) + '</th></tr>' : '') + divs[d].map(line).join(''); }).join('') + '</tbody></table></div>';
   }
   // One conference's numbers for the overview and its own page.
